@@ -5,35 +5,35 @@ import os
 from PIL import Image, ImageChops, ImageMath
 import numpy as np
 
-def get_add_objs(objname):
-    # Decide how many additional objects you will augment and what will be the other types of objects
-    if objname == 'ape':
-        add_objs = ['can', 'cat', 'duck', 'glue', 'holepuncher', 'iron', 'phone'] # eggbox
-    elif objname == 'benchvise':
-        add_objs = ['ape', 'can', 'cat', 'driller', 'duck', 'glue', 'holepuncher']
-    elif objname == 'cam':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'holepuncher']
-    elif objname == 'can':
-        add_objs = ['ape', 'benchvise', 'cat', 'driller', 'duck', 'eggbox', 'holepuncher']
-    elif objname == 'cat':
-        add_objs = ['ape', 'can', 'duck', 'glue', 'holepuncher', 'eggbox', 'phone']
-    elif objname == 'driller':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'duck', 'glue', 'holepuncher']
-    elif objname == 'duck':
-        add_objs = ['ape', 'can', 'cat', 'eggbox', 'glue', 'holepuncher', 'phone']
-    elif objname == 'eggbox':
-        add_objs = ['ape', 'benchvise', 'cam', 'can', 'cat', 'duck', 'glue', 'holepuncher']
-    elif objname == 'glue':
-        add_objs = ['ape', 'benchvise', 'cam', 'driller', 'duck', 'eggbox', 'holepuncher' ]
-    elif objname == 'holepuncher':
-        add_objs = ['benchvise', 'cam', 'can', 'cat', 'driller', 'duck', 'eggbox']
-    elif objname == 'iron':
-        add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'glue']
-    elif objname == 'lamp':
-        add_objs = ['ape', 'benchvise', 'can', 'driller', 'eggbox', 'holepuncher', 'iron']
-    elif objname == 'phone':
-        add_objs = ['ape', 'benchvise', 'cam', 'can', 'driller', 'duck', 'holepuncher']
-    return add_objs
+# def get_add_objs(objname):
+#     # Decide how many additional objects you will augment and what will be the other types of objects
+#     if objname == 'ape':
+#         add_objs = ['can', 'cat', 'duck', 'glue', 'holepuncher', 'iron', 'phone'] # eggbox
+#     elif objname == 'benchvise':
+#         add_objs = ['ape', 'can', 'cat', 'driller', 'duck', 'glue', 'holepuncher']
+#     elif objname == 'cam':
+#         add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'holepuncher']
+#     elif objname == 'can':
+#         add_objs = ['ape', 'benchvise', 'cat', 'driller', 'duck', 'eggbox', 'holepuncher']
+#     elif objname == 'cat':
+#         add_objs = ['ape', 'can', 'duck', 'glue', 'holepuncher', 'eggbox', 'phone']
+#     elif objname == 'driller':
+#         add_objs = ['ape', 'benchvise', 'can', 'cat', 'duck', 'glue', 'holepuncher']
+#     elif objname == 'duck':
+#         add_objs = ['ape', 'can', 'cat', 'eggbox', 'glue', 'holepuncher', 'phone']
+#     elif objname == 'eggbox':
+#         add_objs = ['ape', 'benchvise', 'cam', 'can', 'cat', 'duck', 'glue', 'holepuncher']
+#     elif objname == 'glue':
+#         add_objs = ['ape', 'benchvise', 'cam', 'driller', 'duck', 'eggbox', 'holepuncher' ]
+#     elif objname == 'holepuncher':
+#         add_objs = ['benchvise', 'cam', 'can', 'cat', 'driller', 'duck', 'eggbox']
+#     elif objname == 'iron':
+#         add_objs = ['ape', 'benchvise', 'can', 'cat', 'driller', 'duck', 'glue']
+#     elif objname == 'lamp':
+#         add_objs = ['ape', 'benchvise', 'can', 'driller', 'eggbox', 'holepuncher', 'iron']
+#     elif objname == 'phone':
+#         add_objs = ['ape', 'benchvise', 'cam', 'can', 'driller', 'duck', 'holepuncher']
+#     return add_objs
 
 def mask_background(img, mask):
     ow, oh = img.size
@@ -149,6 +149,7 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
                 bs[i][2*j+1] = xs[j]
                 bs[i][2*j+2] = ys[j]
 
+            # Debatable
             min_x = min(xs);
             max_x = max(xs);
             min_y = min(ys);
@@ -321,63 +322,87 @@ def augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, 
     total_mask = mask
     total_masked_img = masked_img
     count = 1
-    for obj in add_objs:
-        successful = False
-        while not successful:
 
-            objpath = '../LINEMOD/' + obj + '/train.txt'
-            with open(objpath, 'r') as objfile:
-                objlines = objfile.readlines()
-            rand_index = random.randint(0, len(objlines) - 1)
-            obj_rand_img_path = '../' + objlines[rand_index].rstrip()
-            obj_rand_mask_path = obj_rand_img_path.replace('JPEGImages', 'mask').replace('/00', '/').replace('.jpg', '.png')
-            obj_rand_lab_path = obj_rand_img_path.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
+    # for obj in add_objs:
+    #     successful = False
+    #     while not successful:
 
-            obj_rand_img = Image.open(obj_rand_img_path).convert('RGB')
-            obj_rand_mask = Image.open(obj_rand_mask_path).convert('RGB')
-            obj_rand_masked_img = mask_background(obj_rand_img, obj_rand_mask)
+    #         objpath = '../LINEMOD/' + obj + '/train.txt'
+    #         with open(objpath, 'r') as objfile:
+    #             objlines = objfile.readlines()
+    #         rand_index = random.randint(0, len(objlines) - 1)
+    #         obj_rand_img_path = '../' + objlines[rand_index].rstrip()
+    #         obj_rand_mask_path = obj_rand_img_path.replace('JPEGImages', 'mask').replace('/00', '/').replace('.jpg', '.png')
+    #         obj_rand_lab_path = obj_rand_img_path.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
 
-            obj_rand_masked_img,obj_rand_mask,flip,dx,dy,sx,sy = data_augmentation_with_mask(obj_rand_masked_img, obj_rand_mask, shape, jitter, hue, saturation, exposure)
-            obj_rand_label = fill_truth_detection(obj_rand_lab_path, iw, ih, flip, dx, dy, 1./sx, 1./sy, num_keypoints, max_num_gt)
+    #         obj_rand_img = Image.open(obj_rand_img_path).convert('RGB')
+    #         obj_rand_mask = Image.open(obj_rand_mask_path).convert('RGB')
+    #         obj_rand_masked_img = mask_background(obj_rand_img, obj_rand_mask)
+
+    #         obj_rand_masked_img,obj_rand_mask,flip,dx,dy,sx,sy = data_augmentation_with_mask(obj_rand_masked_img, obj_rand_mask, shape, jitter, hue, saturation, exposure)
+    #         obj_rand_label = fill_truth_detection(obj_rand_lab_path, iw, ih, flip, dx, dy, 1./sx, 1./sy, num_keypoints, max_num_gt)
             
-            # compute intersection (ratio of the object part intersecting with other object parts over the area of the object)
-            xx = np.array(obj_rand_mask)
-            xx = np.where(xx > pixelThreshold, 1, 0)
-            yy = np.array(total_mask)
-            yy = np.where(yy > pixelThreshold, 1, 0)
-            intersection = (xx * yy) 
-            if (np.sum(xx) < 0.01) and (np.sum(xx) > -0.01):
-                successful = False
-                continue
-            intersection_ratio = float(np.sum(intersection)) / float(np.sum(xx))
-            if intersection_ratio < 0.2:
-                successful = True
-                total_mask = superimpose_masks(obj_rand_mask, total_mask) #  total_mask + obj_rand_mask
-                total_masked_img = superimpose_masked_imgs(obj_rand_masked_img, obj_rand_mask, total_masked_img) # total_masked_img + obj_rand_masked_img
-                obj_rand_label = np.reshape(obj_rand_label, (-1, num_labels))
-                total_label[count, :] = obj_rand_label[0, :] 
-                count = count + 1
-            else:
-                successful = False
+    #         # compute intersection (ratio of the object part intersecting with other object parts over the area of the object)
+    #         xx = np.array(obj_rand_mask)
+    #         xx = np.where(xx > pixelThreshold, 1, 0)
+    #         yy = np.array(total_mask)
+    #         yy = np.where(yy > pixelThreshold, 1, 0)
+    #         intersection = (xx * yy) 
+    #         if (np.sum(xx) < 0.01) and (np.sum(xx) > -0.01):
+    #             successful = False
+    #             continue
+    #         intersection_ratio = float(np.sum(intersection)) / float(np.sum(xx))
+    #         if intersection_ratio < 0.2:
+    #             successful = True
+    #             total_mask = superimpose_masks(obj_rand_mask, total_mask) #  total_mask + obj_rand_mask
+    #             total_masked_img = superimpose_masked_imgs(obj_rand_masked_img, obj_rand_mask, total_masked_img) # total_masked_img + obj_rand_masked_img
+    #             obj_rand_label = np.reshape(obj_rand_label, (-1, num_labels))
+    #             total_label[count, :] = obj_rand_label[0, :] 
+    #             count = count + 1
+    #         else:
+    #             successful = False
 
     total_masked_img = superimpose_masked_imgs(masked_img, mask, total_masked_img)
 
     return total_masked_img, np.reshape(total_label, (-1)), total_mask
 
+
+# def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpath, num_keypoints, max_num_gt):
+    
+#     # Read the background image
+#     bg = Image.open(bgpath).convert('RGB')
+    
+#     # Understand which object it is and get the neighboring objects
+#     dirname = os.path.dirname(os.path.dirname(imgpath)) ## dir of dir of file
+#     objname = os.path.basename(dirname)
+#     # add_objs = get_add_objs(objname)
+#     add_objs = None
+#     num_labels = 2*num_keypoints+3
+    
+#     # Add additional objects in the scene, apply data augmentation on the objects
+#     total_masked_img, label, total_mask = augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, exposure, num_keypoints, max_num_gt)
+#     img = change_background(total_masked_img, total_mask, bg)
+#     lb = np.reshape(label, (-1, num_labels))
+#     return img,label
+
+
 def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpath, num_keypoints, max_num_gt):
     
-    # Read the background image
-    bg = Image.open(bgpath).convert('RGB')
-    
-    # Understand which object it is and get the neighboring objects
-    dirname = os.path.dirname(os.path.dirname(imgpath)) ## dir of dir of file
-    objname = os.path.basename(dirname)
-    add_objs = get_add_objs(objname)
-    num_labels = 2*num_keypoints+3
-    
-    # Add additional objects in the scene, apply data augmentation on the objects
-    total_masked_img, label, total_mask = augment_objects(imgpath, objname, add_objs, shape, jitter, hue, saturation, exposure, num_keypoints, max_num_gt)
-    img = change_background(total_masked_img, total_mask, bg)
-    lb = np.reshape(label, (-1, num_labels))
+    labpath = imgpath.replace('images', 'labels').replace('.jpg', '.txt')
+    maskpath = imgpath.replace('images', 'masks_rcnn').replace('.jpg', '.png')
+
+    ## data augmentation
+    img = Image.open(imgpath).convert('RGB')
+
+    # mask = Image.open(maskpath).convert('RGB')
+    # bg = Image.open(bgpath).convert('RGB')
+    # img = change_background(img, mask, bg)
+
+    img,flip,dx,dy,sx,sy = data_augmentation(img, shape, jitter, hue, saturation, exposure)
+    ow, oh = img.size
+
+    label = fill_truth_detection(labpath, ow, oh, flip, dx, dy, 1./sx, 1./sy, num_keypoints, max_num_gt)
+
     return img,label
+
 

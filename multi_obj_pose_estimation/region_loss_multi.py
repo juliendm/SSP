@@ -145,7 +145,7 @@ class RegionLoss(nn.Module):
         nGT, nCorrect, coord_mask, conf_mask, cls_mask, txs, tys, tconf, tcls = \
                        build_targets(pred_corners, target.data, self.num_keypoints, self.anchors, nA, nC, nH, nW, self.noobject_scale, self.object_scale, self.thresh, self.seen)
         cls_mask   = (cls_mask == 1)
-        nProposals = int((conf > 0.25).sum().data[0])
+        nProposals = int((conf > 0.25).sum().data)
         for i in range(self.num_keypoints):
             txs[i] = Variable(txs[i].cuda())
             tys[i] = Variable(tys[i].cuda())
@@ -175,7 +175,7 @@ class RegionLoss(nn.Module):
             # once the coordinate predictions get better, start training for confidence as well
             loss  = loss_x + loss_y + loss_cls
     
-        print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, cls %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data[0], loss_y.data[0], loss_conf.data[0], loss_cls.data[0], loss.data[0]))
+        print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, cls %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data, loss_y.data, loss_conf.data, loss_cls.data, loss.data))
         t4 = time.time()
 
         if False:

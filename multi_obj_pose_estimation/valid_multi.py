@@ -10,13 +10,15 @@ warnings.filterwarnings("ignore")
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 
+import matplotlib.pyplot as plt
+
 import dataset_multi
 from darknet_multi import Darknet
 from utils_multi import *
 from cfg import parse_cfg
 from MeshPly import MeshPly
 
-def valid(datacfg, cfgfile, weightfile):
+def valid(datacfg, cfgfile, weightfile, visualize=False):
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
@@ -75,6 +77,10 @@ def valid(datacfg, cfgfile, weightfile):
     logging('Testing {}...'.format(name))
     for batch_idx, (data, target) in enumerate(test_loader):
         
+        img = data[0, :, :, :]
+        img = img.numpy().squeeze()
+        img = np.transpose(img, (1, 2, 0))
+
         t1 = time.time()
         # Pass data to GPU
         if use_cuda:
@@ -147,6 +153,19 @@ def valid(datacfg, cfgfile, weightfile):
                 norm         = np.linalg.norm(proj_2d_gt - proj_2d_pred, axis=0)
                 pixel_dist   = np.mean(norm)
                 errs_2d.append(pixel_dist)
+
+
+                if visualize:
+                    # Visualize
+                    plt.xlim((0, im_width))
+                    plt.ylim((0, im_height))
+                    plt.imshow(img)
+                    # Projections
+                    for edge in edges_corners:
+                        plt.plot(proj_corners_gt[edge, 0], proj_corners_gt[edge, 1], color='g', linewidth=3.0)
+                        plt.plot(proj_corners_pr[edge, 0], proj_corners_pr[edge, 1], color='b', linewidth=3.0)
+                    plt.gca().invert_yaxis()
+                    plt.show()
 
         t5 = time.time()
 

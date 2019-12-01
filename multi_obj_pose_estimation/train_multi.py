@@ -296,19 +296,7 @@ def test(niter):
     logging("Testing glue...")
     eval(niter, datacfg)
 
-if __name__ == "__main__":
-
-    # Parse command window input
-    parser = argparse.ArgumentParser(description='SingleShotPose')
-    parser.add_argument('--datacfg', type=str, default='cfg/occlusion.data') # data config
-    parser.add_argument('--modelcfg', type=str, default='cfg/yolo-pose-multi.cfg') # network config
-    parser.add_argument('--initweightfile', type=str, default='backup_multi/init.weights') # initialization weights
-    parser.add_argument('--pretrain_num_epochs', type=int, default=0) # how many epoch to pretrain
-    args                = parser.parse_args()
-    datacfg             = args.datacfg
-    modelcfg            = args.modelcfg
-    initweightfile      = args.initweightfile
-    pretrain_num_epochs = args.pretrain_num_epochs
+def train_multi(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
     # Parse data configuration file
     data_options = read_data_cfg(datacfg)
@@ -420,3 +408,21 @@ if __name__ == "__main__":
                     logging('save weights to %s/model.weights' % (backupdir))
                     model.module.save_weights('%s/model.weights' % (backupdir))
         # shutil.copy2('%s/model.weights' % (backupdir), '%s/model_backup.weights' % (backupdir))
+
+if __name__ == "__main__":
+
+    # Parse command window input
+    parser = argparse.ArgumentParser(description='SingleShotPose')
+    parser.add_argument('--datacfg', type=str, default='cfg/occlusion.data') # data config
+    parser.add_argument('--modelcfg', type=str, default='cfg/yolo-pose-multi.cfg') # network config
+    parser.add_argument('--initweightfile', type=str, default='backup_multi/init.weights') # initialization weights
+    parser.add_argument('--pretrain_num_epochs', type=int, default=0) # how many epoch to pretrain
+    args                = parser.parse_args()
+    datacfg             = args.datacfg
+    modelcfg            = args.modelcfg
+    initweightfile      = args.initweightfile
+    pretrain_num_epochs = args.pretrain_num_epochs
+
+    train_multi(datacfg, modelcfg, initweightfile, pretrain_num_epochs)
+
+

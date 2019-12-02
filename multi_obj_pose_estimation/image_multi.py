@@ -156,6 +156,8 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
             max_y = max(ys);
             bs[i][2*num_keypoints+1] = max_x - min_x;
             bs[i][2*num_keypoints+2] = max_y - min_y;
+
+            bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
             
             label[cc] = bs[i]
             cc += 1
@@ -403,6 +405,12 @@ def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpat
 
     label = fill_truth_detection(labpath, ow, oh, flip, dx, dy, 1./sx, 1./sy, num_keypoints, max_num_gt)
 
-    return img,label
+    # num_labels = 2*num_keypoints+3
+    # lb = np.reshape(label, (-1, num_labels))
+
+    num_labels = 2*num_keypoints+3
+    lb = np.reshape(label, (-1))
+
+    return img,lb
 
 

@@ -24,7 +24,7 @@ from region_loss_multi import RegionLoss
 import dataset_multi
 
 # Adjust learning rate during training, learning schedule can be changed in network config file
-def adjust_learning_rate(optimizer, batch):
+def adjust_learning_rate(optimizer, batch, learning_rate, steps, scales, batch_size):
     lr = learning_rate
     for i in range(len(steps)):
         scale = scales[i] if i < len(scales) else 1
@@ -38,87 +38,87 @@ def adjust_learning_rate(optimizer, batch):
         param_group['lr'] = lr/batch_size
     return lr
 
-def train(epoch):
+# def train(epoch):
 
-    global processed_batches
+#     global processed_batches
     
-    # Initialize timer
-    t0 = time.time()
+#     # Initialize timer
+#     t0 = time.time()
 
-    # Get the dataloader for training dataset
-    train_loader = torch.utils.data.DataLoader(dataset_multi.listDataset(trainlist, shape=(init_width, init_height),
-                                                            shuffle=True,
-                                                            transform=transforms.Compose([transforms.ToTensor(),]), 
-                                                            train=True, 
-                                                            seen=model.module.seen,
-                                                            batch_size=batch_size,
-                                                            num_workers=num_workers, bg_file_names=bg_file_names),
-                                                batch_size=batch_size, shuffle=False, **kwargs)
+#     # Get the dataloader for training dataset
+#     train_loader = torch.utils.data.DataLoader(dataset_multi.listDataset(trainlist, shape=(init_width, init_height),
+#                                                             shuffle=True,
+#                                                             transform=transforms.Compose([transforms.ToTensor(),]), 
+#                                                             train=True, 
+#                                                             seen=model.module.seen,
+#                                                             batch_size=batch_size,
+#                                                             num_workers=num_workers, bg_file_names=bg_file_names),
+#                                                 batch_size=batch_size, shuffle=False, **kwargs)
 
-    # TRAINING
-    lr = adjust_learning_rate(optimizer, processed_batches)
-    logging('epoch %d, processed %d samples, lr %f' % (epoch, epoch * len(train_loader.dataset), lr))
-    # Start training
-    model.train()
-    t1 = time.time()
-    avg_time = torch.zeros(9)
-    niter = 0
-    # Iterate through batches
-    for batch_idx, (data, target) in enumerate(train_loader):
-        t2 = time.time()
-        # adjust learning rate
-        adjust_learning_rate(optimizer, processed_batches)
-        processed_batches = processed_batches + 1
-        # Pass the data to GPU
-        if use_cuda:
-            data = data.cuda()
-        t3 = time.time()
-        # Wrap tensors in Variable class for automatic differentiation
-        data, target = Variable(data), Variable(target)
-        t4 = time.time()
-        # Zero the gradients before running the backward pass
-        optimizer.zero_grad()
-        t5 = time.time()
-        # Forward pass
-        output = model(data)
-        t6 = time.time()
-        region_loss.seen = region_loss.seen + data.data.size(0)
-        # Compute loss, grow an array of losses for saving later on
-        loss = region_loss(output, target, epoch)
-        training_iters.append(epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter)
-        training_losses.append(convert2cpu(loss.data))
-        niter += 1
-        t7 = time.time()
-        # Backprop: compute gradient of the loss with respect to model parameters
-        loss.backward()
-        t8 = time.time()
-        # Update weights
-        optimizer.step()
-        t9 = time.time()
-        # Print time statistics
-        if False and batch_idx > 1:
-            avg_time[0] = avg_time[0] + (t2-t1)
-            avg_time[1] = avg_time[1] + (t3-t2)
-            avg_time[2] = avg_time[2] + (t4-t3)
-            avg_time[3] = avg_time[3] + (t5-t4)
-            avg_time[4] = avg_time[4] + (t6-t5)
-            avg_time[5] = avg_time[5] + (t7-t6)
-            avg_time[6] = avg_time[6] + (t8-t7)
-            avg_time[7] = avg_time[7] + (t9-t8)
-            avg_time[8] = avg_time[8] + (t9-t1)
-            print('-------------------------------')
-            print('       load data : %f' % (avg_time[0]/(batch_idx)))
-            print('     cpu to cuda : %f' % (avg_time[1]/(batch_idx)))
-            print('cuda to variable : %f' % (avg_time[2]/(batch_idx)))
-            print('       zero_grad : %f' % (avg_time[3]/(batch_idx)))
-            print(' forward feature : %f' % (avg_time[4]/(batch_idx)))
-            print('    forward loss : %f' % (avg_time[5]/(batch_idx)))
-            print('        backward : %f' % (avg_time[6]/(batch_idx)))
-            print('            step : %f' % (avg_time[7]/(batch_idx)))
-            print('           total : %f' % (avg_time[8]/(batch_idx)))
-        t1 = time.time()
-    t1 = time.time()
-    return epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter - 1 
+#     # TRAINING
+#     lr = adjust_learning_rate(optimizer, processed_batches)
+#     logging('epoch %d, processed %d samples, lr %f' % (epoch, epoch * len(train_loader.dataset), lr))
+#     # Start training
+#     model.train()
+#     t1 = time.time()
+#     avg_time = torch.zeros(9)
+#     niter = 0
+#     # Iterate through batches
+#     for batch_idx, (data, target) in enumerate(train_loader):
+#         t2 = time.time()
+#         # adjust learning rate
+#         adjust_learning_rate(optimizer, processed_batches)
+#         processed_batches = processed_batches + 1
+#         # Pass the data to GPU
+#         if use_cuda:
+#             data = data.cuda()
+#         t3 = time.time()
+#         # Wrap tensors in Variable class for automatic differentiation
+#         data, target = Variable(data), Variable(target)
+#         t4 = time.time()
+#         # Zero the gradients before running the backward pass
+#         optimizer.zero_grad()
+#         t5 = time.time()
+#         # Forward pass
+#         output = model(data)
+#         t6 = time.time()
+#         region_loss.seen = region_loss.seen + data.data.size(0)
+#         # Compute loss, grow an array of losses for saving later on
+#         loss = region_loss(output, target, epoch)
+#         training_iters.append(epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter)
+#         training_losses.append(convert2cpu(loss.data))
+#         niter += 1
+#         t7 = time.time()
+#         # Backprop: compute gradient of the loss with respect to model parameters
+#         loss.backward()
+#         t8 = time.time()
+#         # Update weights
+#         optimizer.step()
+#         t9 = time.time()
+#         # Print time statistics
+#         if False and batch_idx > 1:
+#             avg_time[0] = avg_time[0] + (t2-t1)
+#             avg_time[1] = avg_time[1] + (t3-t2)
+#             avg_time[2] = avg_time[2] + (t4-t3)
+#             avg_time[3] = avg_time[3] + (t5-t4)
+#             avg_time[4] = avg_time[4] + (t6-t5)
+#             avg_time[5] = avg_time[5] + (t7-t6)
+#             avg_time[6] = avg_time[6] + (t8-t7)
+#             avg_time[7] = avg_time[7] + (t9-t8)
+#             avg_time[8] = avg_time[8] + (t9-t1)
+#             print('-------------------------------')
+#             print('       load data : %f' % (avg_time[0]/(batch_idx)))
+#             print('     cpu to cuda : %f' % (avg_time[1]/(batch_idx)))
+#             print('cuda to variable : %f' % (avg_time[2]/(batch_idx)))
+#             print('       zero_grad : %f' % (avg_time[3]/(batch_idx)))
+#             print(' forward feature : %f' % (avg_time[4]/(batch_idx)))
+#             print('    forward loss : %f' % (avg_time[5]/(batch_idx)))
+#             print('        backward : %f' % (avg_time[6]/(batch_idx)))
+#             print('            step : %f' % (avg_time[7]/(batch_idx)))
+#             print('           total : %f' % (avg_time[8]/(batch_idx)))
+#         t1 = time.time()
+#     t1 = time.time()
+#     return epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter - 1 
 
 def eval(niter, datacfg):
     def truths_length(truths):
@@ -296,7 +296,7 @@ def test(niter):
     logging("Testing glue...")
     eval(niter, datacfg)
 
-def train_multi(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
+def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
     # Parse data configuration file
     data_options = read_data_cfg(datacfg)
@@ -390,9 +390,89 @@ def train_multi(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
         test(0, 0)
     else:
         for epoch in range(init_epoch, max_epochs): 
+
             # TRAIN
-            niter = train(epoch)
+
+            # Initialize timer
+            t0 = time.time()
+
+            # Get the dataloader for training dataset
+            train_loader = torch.utils.data.DataLoader(dataset_multi.listDataset(trainlist, shape=(init_width, init_height),
+                                                                    shuffle=True,
+                                                                    transform=transforms.Compose([transforms.ToTensor(),]), 
+                                                                    train=True, 
+                                                                    seen=model.module.seen,
+                                                                    batch_size=batch_size,
+                                                                    num_workers=num_workers, bg_file_names=bg_file_names),
+                                                        batch_size=batch_size, shuffle=False, **kwargs)
+
+            # TRAINING
+            lr = adjust_learning_rate(optimizer, processed_batches, learning_rate, steps, scales, batch_size)
+            logging('epoch %d, processed %d samples, lr %f' % (epoch, epoch * len(train_loader.dataset), lr))
+            # Start training
+            model.train()
+            t1 = time.time()
+            avg_time = torch.zeros(9)
+            niter = 0
+            # Iterate through batches
+            for batch_idx, (data, target) in enumerate(train_loader):
+                t2 = time.time()
+                # adjust learning rate
+                adjust_learning_rate(optimizer, processed_batches, learning_rate, steps, scales, batch_size)
+                processed_batches = processed_batches + 1
+                # Pass the data to GPU
+                if use_cuda:
+                    data = data.cuda()
+                t3 = time.time()
+                # Wrap tensors in Variable class for automatic differentiation
+                data, target = Variable(data), Variable(target)
+                t4 = time.time()
+                # Zero the gradients before running the backward pass
+                optimizer.zero_grad()
+                t5 = time.time()
+                # Forward pass
+                output = model(data)
+                t6 = time.time()
+                region_loss.seen = region_loss.seen + data.data.size(0)
+                # Compute loss, grow an array of losses for saving later on
+                loss = region_loss(output, target, epoch)
+                training_iters.append(epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter)
+                training_losses.append(convert2cpu(loss.data))
+                niter += 1
+                t7 = time.time()
+                # Backprop: compute gradient of the loss with respect to model parameters
+                loss.backward()
+                t8 = time.time()
+                # Update weights
+                optimizer.step()
+                t9 = time.time()
+                # Print time statistics
+                if False and batch_idx > 1:
+                    avg_time[0] = avg_time[0] + (t2-t1)
+                    avg_time[1] = avg_time[1] + (t3-t2)
+                    avg_time[2] = avg_time[2] + (t4-t3)
+                    avg_time[3] = avg_time[3] + (t5-t4)
+                    avg_time[4] = avg_time[4] + (t6-t5)
+                    avg_time[5] = avg_time[5] + (t7-t6)
+                    avg_time[6] = avg_time[6] + (t8-t7)
+                    avg_time[7] = avg_time[7] + (t9-t8)
+                    avg_time[8] = avg_time[8] + (t9-t1)
+                    print('-------------------------------')
+                    print('       load data : %f' % (avg_time[0]/(batch_idx)))
+                    print('     cpu to cuda : %f' % (avg_time[1]/(batch_idx)))
+                    print('cuda to variable : %f' % (avg_time[2]/(batch_idx)))
+                    print('       zero_grad : %f' % (avg_time[3]/(batch_idx)))
+                    print(' forward feature : %f' % (avg_time[4]/(batch_idx)))
+                    print('    forward loss : %f' % (avg_time[5]/(batch_idx)))
+                    print('        backward : %f' % (avg_time[6]/(batch_idx)))
+                    print('            step : %f' % (avg_time[7]/(batch_idx)))
+                    print('           total : %f' % (avg_time[8]/(batch_idx)))
+                t1 = time.time()
+            t1 = time.time()
+            niter = epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter - 1 
+
             # TEST and SAVE
+
             if (epoch % 20 == 0) and (epoch is not 0): 
                 test(niter)
                 logging('save training stats to %s/costs.npz' % (backupdir))
@@ -423,6 +503,6 @@ if __name__ == "__main__":
     initweightfile      = args.initweightfile
     pretrain_num_epochs = args.pretrain_num_epochs
 
-    train_multi(datacfg, modelcfg, initweightfile, pretrain_num_epochs)
+    train(datacfg, modelcfg, initweightfile, pretrain_num_epochs)
 
 

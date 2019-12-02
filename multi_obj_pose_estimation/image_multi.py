@@ -114,8 +114,8 @@ def data_augmentation(img, shape, jitter, hue, saturation, exposure):
 
     sized = cropped.resize(shape)
 
-    if flip: 
-        sized = sized.transpose(Image.FLIP_LEFT_RIGHT)
+    # if flip: 
+    #     sized = sized.transpose(Image.FLIP_LEFT_RIGHT)
     img = random_distort_image(sized, hue, saturation, exposure)
     
     return img, flip, dx,dy,sx,sy 
@@ -399,6 +399,8 @@ def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpat
     # mask = Image.open(maskpath).convert('RGB')
     # bg = Image.open(bgpath).convert('RGB')
     # img = change_background(img, mask, bg)
+
+    print('val:',jitter)
 
     img,flip,dx,dy,sx,sy = data_augmentation(img, shape, jitter, hue, saturation, exposure)
     ow, oh = img.size

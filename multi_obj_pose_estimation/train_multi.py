@@ -16,6 +16,8 @@ import shutil
 from torchvision import datasets, transforms
 from torch.autograd import Variable # Useful info about autograd: http://pytorch.org/docs/master/notes/autograd.html
 
+import matplotlib.pyplot as plt
+
 from darknet_multi import Darknet
 from MeshPly import MeshPly
 from utils_multi import *    
@@ -416,6 +418,63 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
             niter = 0
             # Iterate through batches
             for batch_idx, (data, target) in enumerate(train_loader):
+
+                visualize = True
+                if visualize:
+                    def truths_length(truths):
+                        for i in range(50):
+                            if truths[i][1] == 0:
+                                return i
+                    edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
+
+                    for i in range(data.size(0)):
+
+                        img = data[i, :, :, :]
+                        img = img.numpy().squeeze()
+                        img = np.transpose(img, (1, 2, 0))
+
+                        # Visualize
+                        plt.xlim((0, 416))
+                        plt.ylim((0, 416))
+                        plt.imshow(img)
+                        
+                        truths  = target[i].view(-1, num_labels)
+                        
+                        num_gts = truths_length(truths)
+                        for k in range(num_gts): 
+
+                        #     box_gt = list()
+                        #     for j in range(1, num_labels):
+                        #         box_gt.append(truths[k][j])
+                        #     box_gt.extend([1.0, 1.0])
+                        #     box_gt.append(truths[k][0])
+                            
+                        #     # Denormalize the corner predictions 
+                        #     corners2D_gt = np.array(np.reshape(box_gt[:2*num_keypoints], [-1, 2]), dtype='float32')
+                        #     corners2D_gt[:, 0] = corners2D_gt[:, 0] * im_width
+                        #     corners2D_gt[:, 1] = corners2D_gt[:, 1] * im_height               
+                        #     corners2D_gt_corrected = fix_corner_order(corners2D_gt) # Fix the order of corners
+                            
+                        #     # Compute [R|t] by pnp
+                        #     intrinsic_calibration = get_camera_intrinsic(u0, v0, fx, fy) 
+                        #     objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
+                        #     K = np.array(intrinsic_calibration, dtype='float32')
+                        #     R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
+                            
+                        #     # Compute pixel error
+                        #     Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)
+                        #     proj_corners_gt = np.transpose(compute_projection(corners3D, Rt_gt, intrinsic_calibration)) 
+
+
+                            plt.scatter(truths[k, 1]*416, truths[k, 2]*416, s=20, color='b')
+                            corners_gt = truths[k, 3:19].reshape(8,2)
+                            for edge in edges_corners:
+                                plt.plot(corners_gt[edge, 0]*416, corners_gt[edge, 1]*416, color='g', linewidth=1)
+
+                        plt.gca().invert_yaxis()
+                        plt.show()
+
+
                 t2 = time.time()
                 # adjust learning rate
                 adjust_learning_rate(optimizer, processed_batches, learning_rate, steps, scales, batch_size)

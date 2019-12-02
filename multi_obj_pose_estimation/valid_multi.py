@@ -76,10 +76,6 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
     # Iterate through test batches (Batch size for test data is 1)
     logging('Testing {}...'.format(name))
     for batch_idx, (data, target) in enumerate(test_loader):
-        
-        img = data[0, :, :, :]
-        img = img.numpy().squeeze()
-        img = np.transpose(img, (1, 2, 0))
 
         t1 = time.time()
         # Pass data to GPU
@@ -102,6 +98,10 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
         
         # Iterate through all images in the batch
         for i in range(output.size(0)):
+
+            img = data[i, :, :, :]
+            img = img.numpy().squeeze()
+            img = np.transpose(img, (1, 2, 0))
             
             # For each image, get all the predictions
             boxes   = all_boxes[i]

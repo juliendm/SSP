@@ -59,7 +59,7 @@ class listDataset(Dataset):
 
         if self.train:
             # Decide on how much data augmentation you are going to apply
-            jitter = 0.1
+            jitter = 0.0
             hue = 0.05
             saturation = 1.5 
             exposure = 1.5

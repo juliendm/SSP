@@ -31,7 +31,6 @@
 ../../baidu_data/training/images/ID_01ec38fc2.jpg
 ../../baidu_data/training/images/ID_864bdfd48.jpg
 ../../baidu_data/training/images/ID_32b2fe4cf.jpg
-../../baidu_data/training/images/ID_bb1d991f6.jpg
 ../../baidu_data/training/images/ID_a0e9954a3.jpg
 ../../baidu_data/training/images/ID_24bc6b53c.jpg
 ../../baidu_data/training/images/ID_fd07d4f5f.jpg
@@ -1483,7 +1482,6 @@
 ../../baidu_data/training/images/ID_97fd761ea.jpg
 ../../baidu_data/training/images/ID_a94231bd5.jpg
 ../../baidu_data/training/images/ID_8739b463c.jpg
-../../baidu_data/training/images/ID_408f58e9f.jpg
 ../../baidu_data/training/images/ID_749c4d3bd.jpg
 ../../baidu_data/training/images/ID_e95db0886.jpg
 ../../baidu_data/training/images/ID_4a93ec46c.jpg
@@ -1881,7 +1879,6 @@
 ../../baidu_data/training/images/ID_d8d2b7627.jpg
 ../../baidu_data/training/images/ID_78ff568d4.jpg
 ../../baidu_data/training/images/ID_385b98153.jpg
-../../baidu_data/training/images/ID_c44983aeb.jpg
 ../../baidu_data/training/images/ID_9ea9b90a0.jpg
 ../../baidu_data/training/images/ID_2c875333b.jpg
 ../../baidu_data/training/images/ID_d658070f9.jpg
@@ -2792,7 +2789,6 @@
 ../../baidu_data/training/images/ID_d996dd79d.jpg
 ../../baidu_data/training/images/ID_7c607a7d4.jpg
 ../../baidu_data/training/images/ID_c209ada3e.jpg
-../../baidu_data/training/images/ID_1a5a10365.jpg
 ../../baidu_data/training/images/ID_beaf86342.jpg
 ../../baidu_data/training/images/ID_977ac6231.jpg
 ../../baidu_data/training/images/ID_20773c5a2.jpg

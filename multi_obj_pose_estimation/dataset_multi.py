@@ -70,13 +70,17 @@ class listDataset(Dataset):
 
             img, label = load_data_detection(imgpath, self.shape, jitter, hue, saturation, exposure, bgpath, self.num_keypoints, self.max_num_gt)
             label = torch.from_numpy(label)
+
         else:
+
             img = Image.open(imgpath).convert('RGB')
             if self.shape:
                 img = img.resize(self.shape)
             
-            labpath = imgpath.replace('benchvise', self.objclass).replace('images', 'labels_occlusion').replace('JPEGImages', 'labels_occlusion').replace('.jpg', '.txt').replace('.png','.txt')
+            labpath = imgpath.replace('images', 'labels').replace('.jpg', '.txt')
+
             num_labels = 2*self.num_keypoints+3 # +2 for ground-truth of width/height , +1 for class label
+            
             label = torch.zeros(self.max_num_gt*num_labels)
             if os.path.getsize(labpath):
                 ow, oh = img.size

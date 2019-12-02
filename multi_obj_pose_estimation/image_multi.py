@@ -157,7 +157,8 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
             bs[i][2*num_keypoints+1] = max_x - min_x;
             bs[i][2*num_keypoints+2] = max_y - min_y;
 
-            bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # # Force to only one class
+            # bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
             
             label[cc] = bs[i]
             cc += 1
@@ -399,8 +400,6 @@ def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpat
     # mask = Image.open(maskpath).convert('RGB')
     # bg = Image.open(bgpath).convert('RGB')
     # img = change_background(img, mask, bg)
-
-    print('val:',jitter)
 
     img,flip,dx,dy,sx,sy = data_augmentation(img, shape, jitter, hue, saturation, exposure)
     ow, oh = img.size

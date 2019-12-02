@@ -439,7 +439,6 @@
 ../../baidu_data/training/images/ID_ca68a4755.jpg
 ../../baidu_data/training/images/ID_0c80df3ef.jpg
 ../../baidu_data/training/images/ID_898f05987.jpg
-../../baidu_data/training/images/ID_4d238ae90.jpg
 ../../baidu_data/training/images/ID_d5925e047.jpg
 ../../baidu_data/training/images/ID_03d83bd0e.jpg
 ../../baidu_data/training/images/ID_feb6e5c8a.jpg

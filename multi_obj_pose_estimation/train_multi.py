@@ -40,107 +40,47 @@ def adjust_learning_rate(optimizer, batch, learning_rate, steps, scales, batch_s
         param_group['lr'] = lr/batch_size
     return lr
 
-# def train(epoch):
 
-#     global processed_batches
-    
-#     # Initialize timer
-#     t0 = time.time()
-
-#     # Get the dataloader for training dataset
-#     train_loader = torch.utils.data.DataLoader(dataset_multi.listDataset(trainlist, shape=(init_width, init_height),
-#                                                             shuffle=True,
-#                                                             transform=transforms.Compose([transforms.ToTensor(),]), 
-#                                                             train=True, 
-#                                                             seen=model.module.seen,
-#                                                             batch_size=batch_size,
-#                                                             num_workers=num_workers, bg_file_names=bg_file_names),
-#                                                 batch_size=batch_size, shuffle=False, **kwargs)
-
-#     # TRAINING
-#     lr = adjust_learning_rate(optimizer, processed_batches)
-#     logging('epoch %d, processed %d samples, lr %f' % (epoch, epoch * len(train_loader.dataset), lr))
-#     # Start training
-#     model.train()
-#     t1 = time.time()
-#     avg_time = torch.zeros(9)
-#     niter = 0
-#     # Iterate through batches
-#     for batch_idx, (data, target) in enumerate(train_loader):
-#         t2 = time.time()
-#         # adjust learning rate
-#         adjust_learning_rate(optimizer, processed_batches)
-#         processed_batches = processed_batches + 1
-#         # Pass the data to GPU
-#         if use_cuda:
-#             data = data.cuda()
-#         t3 = time.time()
-#         # Wrap tensors in Variable class for automatic differentiation
-#         data, target = Variable(data), Variable(target)
-#         t4 = time.time()
-#         # Zero the gradients before running the backward pass
-#         optimizer.zero_grad()
-#         t5 = time.time()
-#         # Forward pass
-#         output = model(data)
-#         t6 = time.time()
-#         region_loss.seen = region_loss.seen + data.data.size(0)
-#         # Compute loss, grow an array of losses for saving later on
-#         loss = region_loss(output, target, epoch)
-#         training_iters.append(epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter)
-#         training_losses.append(convert2cpu(loss.data))
-#         niter += 1
-#         t7 = time.time()
-#         # Backprop: compute gradient of the loss with respect to model parameters
-#         loss.backward()
-#         t8 = time.time()
-#         # Update weights
-#         optimizer.step()
-#         t9 = time.time()
-#         # Print time statistics
-#         if False and batch_idx > 1:
-#             avg_time[0] = avg_time[0] + (t2-t1)
-#             avg_time[1] = avg_time[1] + (t3-t2)
-#             avg_time[2] = avg_time[2] + (t4-t3)
-#             avg_time[3] = avg_time[3] + (t5-t4)
-#             avg_time[4] = avg_time[4] + (t6-t5)
-#             avg_time[5] = avg_time[5] + (t7-t6)
-#             avg_time[6] = avg_time[6] + (t8-t7)
-#             avg_time[7] = avg_time[7] + (t9-t8)
-#             avg_time[8] = avg_time[8] + (t9-t1)
-#             print('-------------------------------')
-#             print('       load data : %f' % (avg_time[0]/(batch_idx)))
-#             print('     cpu to cuda : %f' % (avg_time[1]/(batch_idx)))
-#             print('cuda to variable : %f' % (avg_time[2]/(batch_idx)))
-#             print('       zero_grad : %f' % (avg_time[3]/(batch_idx)))
-#             print(' forward feature : %f' % (avg_time[4]/(batch_idx)))
-#             print('    forward loss : %f' % (avg_time[5]/(batch_idx)))
-#             print('        backward : %f' % (avg_time[6]/(batch_idx)))
-#             print('            step : %f' % (avg_time[7]/(batch_idx)))
-#             print('           total : %f' % (avg_time[8]/(batch_idx)))
-#         t1 = time.time()
-#     t1 = time.time()
-#     return epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter - 1 
-
-def eval(niter, datacfg):
+def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, testing_errors_pixel):
     def truths_length(truths):
         for i in range(50):
             if truths[i][1] == 0:
                 return i
-            
-    # Parse configuration files
-    options       = read_data_cfg(datacfg)
-    valid_images  = options['valid']
-    meshname      = options['mesh']
-    backupdir     = options['backup']
-    name          = options['name']
-    # Read object model information, get 3D bounding box corners
-    mesh          = MeshPly(meshname)
-    vertices      = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
-    corners3D     = get_3D_corners(vertices)
-    # Read intrinsic camera parameters
-    internal_calibration = get_camera_intrinsic(u0, v0, fx, fy)        
-    
+
+    # Parse data configuration file
+    data_options = read_data_cfg(datacfg)
+    valid_images = data_options['valid']
+    gpus         = data_options['gpus']  
+    num_workers  = int(data_options['num_workers'])
+    backupdir    = data_options['backup']
+    im_width     = int(data_options['im_width'])
+    im_height    = int(data_options['im_height']) 
+    fx           = float(data_options['fx'])
+    fy           = float(data_options['fy'])
+    u0           = float(data_options['u0'])
+    v0           = float(data_options['v0'])
+
+    internal_calibration = get_camera_intrinsic(u0, v0, fx, fy)
+
+    # Parse network and training configuration parameters
+    net_options   = parse_cfg(modelcfg)[0]
+    loss_options  = parse_cfg(modelcfg)[-1]
+    batch_size    = int(net_options['batch'])
+    max_batches   = int(net_options['max_batches'])
+    max_epochs    = int(net_options['max_epochs'])
+    learning_rate = float(net_options['learning_rate'])
+    momentum      = float(net_options['momentum'])
+    decay         = float(net_options['decay'])
+    conf_thresh   = float(net_options['conf_thresh'])
+    num_keypoints = int(net_options['num_keypoints'])
+    num_classes   = int(loss_options['classes'])
+    num_anchors   = int(loss_options['num'])
+    steps         = [float(step) for step in net_options['steps'].split(',')]
+    scales        = [float(scale) for scale in net_options['scales'].split(',')]
+    anchors       = [float(anchor) for anchor in loss_options['anchors'].split(',')]
+
+
+
     # Get validation file names
     with open(valid_images) as fp:
         tmp_files = fp.readlines()
@@ -152,7 +92,6 @@ def eval(niter, datacfg):
     # Get the parser for the test dataset
     valid_dataset = dataset_multi.listDataset(valid_images, shape=(model.module.width, model.module.height),
                        shuffle=False,
-                       objclass=name,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                        ]))
@@ -207,9 +146,18 @@ def eval(niter, datacfg):
             # Get how many objects are present in the scene
             num_gts = truths_length(truths)
 
-
             # Iterate through each ground-truth object
             for k in range(num_gts):
+
+                # Read object model information, get 3D bounding box corners
+                model_id = truths[k][0]
+                with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
+                    mesh = json.load(json_file)
+
+                # Note: already extended with "ones" for translation transformation
+                vertices      = np.c_[np.array(mesh['vertices']), np.ones((len(mesh['vertices']), 1))].transpose()
+                corners3D     = get_3D_corners(vertices)   
+
                 box_gt = list()
                 for j in range(1, num_labels):
                     box_gt.append(truths[k][j])
@@ -231,7 +179,9 @@ def eval(niter, datacfg):
                 corners2D_gt[:, 1] = corners2D_gt[:, 1] * im_height               
                 corners2D_pr[:, 0] = corners2D_pr[:, 0] * im_width
                 corners2D_pr[:, 1] = corners2D_pr[:, 1] * im_height
-                corners2D_gt_corrected = fix_corner_order(corners2D_gt) # Fix the order of the corners in OCCLUSION
+
+                print('WARNING: DOES FIX CORNER ORDER STILL APPLY???????????????')
+                corners2D_gt_corrected = corners2D_gt # fix_corner_order(corners2D_gt) # Fix the order of the corners in OCCLUSION
 
                 # Compute [R|t] by pnp
                 objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
@@ -242,10 +192,12 @@ def eval(niter, datacfg):
                 # Compute pixel error
                 Rt_gt           = np.concatenate((R_gt, t_gt), axis=1)
                 Rt_pr           = np.concatenate((R_pr, t_pr), axis=1)
-                proj_2d_gt      = compute_projection(vertices, Rt_gt, internal_calibration) 
-                proj_2d_pred    = compute_projection(vertices, Rt_pr, internal_calibration) 
+
                 proj_corners_gt = np.transpose(compute_projection(corners3D, Rt_gt, internal_calibration)) 
-                proj_corners_pr = np.transpose(compute_projection(corners3D, Rt_pr, internal_calibration)) 
+                proj_corners_pr = np.transpose(compute_projection(corners3D, Rt_pr, internal_calibration))
+
+                proj_2d_gt      = compute_projection(vertices, Rt_gt, internal_calibration) 
+                proj_2d_pred    = compute_projection(vertices, Rt_pr, internal_calibration)      
                 norm            = np.linalg.norm(proj_2d_gt - proj_2d_pred, axis=0)
                 pixel_dist      = np.mean(norm)
                 errs_2d.append(pixel_dist)
@@ -276,27 +228,7 @@ def eval(niter, datacfg):
     testing_errors_pixel.append(testing_error_pixel/(float(testing_samples)+eps))
     testing_accuracies.append(acc)
 
-def test(niter):
-    
-    modelcfg = 'cfg/yolo-pose-multi.cfg'
-    datacfg = 'cfg/ape_occlusion.data'
-    logging("Testing ape...")
-    eval(niter, datacfg)
-    datacfg = 'cfg/can_occlusion.data'
-    logging("Testing can...")
-    eval(niter, datacfg)
-    datacfg = 'cfg/cat_occlusion.data'
-    logging("Testing cat...")
-    eval(niter, datacfg)
-    datacfg = 'cfg/duck_occlusion.data'
-    logging("Testing duck...")
-    eval(niter, datacfg)
-    datacfg = 'cfg/driller_occlusion.data'
-    logging("Testing driller...")
-    eval(niter, datacfg)
-    datacfg = 'cfg/glue_occlusion.data'
-    logging("Testing glue...")
-    eval(niter, datacfg)
+
 
 def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
@@ -530,23 +462,33 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
             t1 = time.time()
             niter = epoch * math.ceil(len(train_loader.dataset) / float(batch_size) ) + niter - 1 
 
-            # TEST and SAVE
 
-            if (epoch % 20 == 0) and (epoch is not 0): 
-                test(niter)
-                logging('save training stats to %s/costs.npz' % (backupdir))
-                np.savez(os.path.join(backupdir, "costs.npz"),
+            # SAVE
+
+            if (epoch % 5 == 0) and (epoch is not 0):
+
+                logging('save training stats to %s/costs_%d.npz' % (backupdir, region_loss.seen))
+
+                np.savez(os.path.join(backupdir, "costs_%d.npz" % region_loss.seen),
                     training_iters=training_iters,
                     training_losses=training_losses,
                     testing_iters=testing_iters,
                     testing_accuracies=testing_accuracies,
                     testing_errors_pixel=testing_errors_pixel) 
-                if (np.mean(testing_accuracies[-6:]) > best_acc ): # testing for 6 different objects
-                    best_acc = np.mean(testing_accuracies[-6:]) 
-                    logging('best model so far!')
-                    logging('save weights to %s/model.weights' % (backupdir))
-                    model.module.save_weights('%s/model.weights' % (backupdir))
-        # shutil.copy2('%s/model.weights' % (backupdir), '%s/model_backup.weights' % (backupdir))
+
+                # if (np.mean(testing_accuracies[-6:]) > best_acc ): # testing for 6 different objects
+                #     best_acc = np.mean(testing_accuracies[-6:]) 
+                #     logging('best model so far!')
+
+                logging('save weights to %s/model_%d.weights' % (backupdir, region_loss.seen))
+                model.module.save_weights('%s/model_%d.weights' % (backupdir, region_loss.seen))
+
+            # VALID
+
+            if (epoch % 20 == 0) and (epoch is not 0):
+
+                logging("Validation...")
+                eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, testing_errors_pixel)
 
 if __name__ == "__main__":
 

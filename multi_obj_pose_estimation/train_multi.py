@@ -297,7 +297,6 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
     region_loss.iter  = model.iter
 
     region_loss.seen  = model.seen
-    model.module.seen = model.seen
 
     processed_batches = model.seen/batch_size
     init_width        = model.width
@@ -437,8 +436,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 t6 = time.time()
 
                 region_loss.seen = region_loss.seen + data.data.size(0)
-                model.module.seen = region_loss.seen
-                model.seen = region_loss.seen
+                model.module.seen = model.module.seen + data.data.size(0)
 
                 # Compute loss, grow an array of losses for saving later on
                 loss = region_loss(output, target, epoch)

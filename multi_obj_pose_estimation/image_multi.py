@@ -157,8 +157,8 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
             bs[i][2*num_keypoints+1] = max_x - min_x;
             bs[i][2*num_keypoints+2] = max_y - min_y;
 
-            # # Force to only one class
-            # bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # Force to only one class
+            bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
             
             label[cc] = bs[i]
             cc += 1

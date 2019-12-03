@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 
 from darknet_multi import Darknet
 from MeshPly import MeshPly
+import json
 from utils_multi import *    
 from cfg import parse_cfg
 from region_loss_multi import RegionLoss
@@ -134,6 +135,7 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
         # Using confidence threshold, eliminate low-confidence predictions
         trgt = target[0].view(-1, num_labels)
 
+        print('WARNING: SHOULD BE MORE GENERAL, CASE BY CASE, FOR CORRESPONDING CLASSES')
         all_boxes = get_multi_region_boxes(output, conf_thresh, num_classes, num_keypoints, anchors, num_anchors, int(trgt[0][0]), only_objectness=0)    
         t4 = time.time()
 
@@ -153,7 +155,7 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
             for k in range(num_gts):
 
                 # Read object model information, get 3D bounding box corners
-                model_id = truths[k][0]
+                model_id = int(truths[k][0])
                 with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
                     mesh = json.load(json_file)
 
@@ -169,6 +171,7 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
                 
                 # If the prediction has the highest confidence, choose it as our prediction
                 best_conf_est = -sys.maxsize
+                print('WARNING: SHOULD BE MORE GENERAL, CASE BY CASE, FOR ALL BOXES INSTEAD OF BEST ONE')
                 for j in range(len(boxes)):
                     if (boxes[j][2*num_keypoints] > best_conf_est) and (boxes[j][2*num_keypoints+2] == int(truths[k][0])):
                         best_conf_est = boxes[j][2*num_keypoints]
@@ -482,9 +485,9 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
             if (epoch % 5 == 0) and (epoch is not 0):
 
-                logging('save training stats to %s/costs_%d.npz' % (backupdir, original_seen+region_loss.seen))
+                logging('save training stats to %s/costs_%d.npz' % (backupdir, (original_seen+region_loss.seen)))
 
-                np.savez(os.path.join(backupdir, "costs_%d.npz" % original_seen+region_loss.seen),
+                np.savez(os.path.join(backupdir, "costs_%d.npz" % (original_seen+region_loss.seen)),
                     training_iters=training_iters,
                     training_losses=training_losses,
                     testing_iters=testing_iters,
@@ -495,12 +498,12 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 #     best_acc = np.mean(testing_accuracies[-6:]) 
                 #     logging('best model so far!')
 
-                logging('save weights to %s/model_%d.weights' % (backupdir, original_seen+region_loss.seen))
-                model.module.save_weights('%s/model_%d.weights' % (backupdir, original_seen+region_loss.seen))
+                logging('save weights to %s/model_%d.weights' % (backupdir, (original_seen+region_loss.seen)))
+                model.module.save_weights('%s/model_%d.weights' % (backupdir, (original_seen+region_loss.seen)))
 
             # VALID
 
-            if (epoch % 20 == 0) and (epoch is not 0):
+            if (epoch % 100 == 0) and (epoch is not 0):
 
                 logging("Validation...")
                 eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, testing_errors_pixel)

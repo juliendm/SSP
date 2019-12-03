@@ -395,7 +395,7 @@ def read_truths(lab_path, num_keypoints=9):
         return np.array([])
 
 def read_truths_args(lab_path, num_keypoints=9):
-    num_labels = 2*num_keypoints+1
+    num_labels = 2*num_keypoints+3
     truths = read_truths(lab_path)
     new_truths = []
     for i in range(truths.shape[0]):

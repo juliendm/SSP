@@ -93,6 +93,8 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
         
         # Using confidence threshold, eliminate low-confidence predictions
         trgt = target[0].view(-1, num_labels)
+
+        print('WARNING: SHOULD BE MORE GENERAL, CASE BY CASE, FOR CORRESPONDING CLASSES')
         all_boxes = get_multi_region_boxes(output, conf_thresh, num_classes, num_keypoints, anchors, num_anchors, int(trgt[0][0]), only_objectness=0)        
         t4 = time.time()
         

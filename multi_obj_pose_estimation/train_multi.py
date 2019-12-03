@@ -362,7 +362,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
             # Iterate through batches
             for batch_idx, (data, target) in enumerate(train_loader):
 
-                visualize = True
+                visualize = False
                 if visualize:
                     def truths_length(truths):
                         for i in range(50):

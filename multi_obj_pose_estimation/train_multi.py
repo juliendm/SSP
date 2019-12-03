@@ -111,8 +111,9 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
     errs_2d              = []
 
     use_cuda      = True
+    num_labels    = num_keypoints*2+3 # + 2 for image width, height, +1 for image class
 
-    logging("   Number of test samples: %d" % len(test_loader.dataset))
+    logging("   Number of validation samples: %d" % len(test_loader.dataset))
     # Iterate through test examples 
     for batch_idx, (data, target) in enumerate(test_loader):
         t1 = time.time()
@@ -267,7 +268,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
     # Further params
     if not os.path.exists(backupdir):
         makedirs(backupdir)
-    bg_file_names = get_all_files('../VOCdevkit/VOC2012/JPEGImages')
+    bg_file_names = ['a','b','c'] #get_all_files('../VOCdevkit/VOC2012/JPEGImages')
     nsamples      = file_lines(trainlist)
     use_cuda      = True
     seed          = int(time.time())
@@ -292,7 +293,8 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
         model.load_weights_until_last(initweightfile)
 
     model.print_network()
-    #model.seen        = 0
+    original_seen     = model.seen
+    model.seen        = 0
     print('Already seen:', model.seen)
     region_loss.iter  = model.iter
 
@@ -436,7 +438,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 t6 = time.time()
 
                 region_loss.seen = region_loss.seen + data.data.size(0)
-                model.module.seen = model.module.seen + data.data.size(0)
+                #model.module.seen = model.module.seen + data.data.size(0)
 
                 # Compute loss, grow an array of losses for saving later on
                 loss = region_loss(output, target, epoch)
@@ -480,9 +482,9 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
             if (epoch % 5 == 0) and (epoch is not 0):
 
-                logging('save training stats to %s/costs_%d.npz' % (backupdir, model.module.seen))
+                logging('save training stats to %s/costs_%d.npz' % (backupdir, original_seen+region_loss.seen))
 
-                np.savez(os.path.join(backupdir, "costs_%d.npz" % model.module.seen),
+                np.savez(os.path.join(backupdir, "costs_%d.npz" % original_seen+region_loss.seen),
                     training_iters=training_iters,
                     training_losses=training_losses,
                     testing_iters=testing_iters,
@@ -493,8 +495,8 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 #     best_acc = np.mean(testing_accuracies[-6:]) 
                 #     logging('best model so far!')
 
-                logging('save weights to %s/model_%d.weights' % (backupdir, model.module.seen))
-                model.module.save_weights('%s/model_%d.weights' % (backupdir, model.module.seen))
+                logging('save weights to %s/model_%d.weights' % (backupdir, original_seen+region_loss.seen))
+                model.module.save_weights('%s/model_%d.weights' % (backupdir, original_seen+region_loss.seen))
 
             # VALID
 

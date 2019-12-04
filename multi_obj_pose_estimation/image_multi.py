@@ -5,6 +5,8 @@ import os
 from PIL import Image, ImageChops, ImageMath
 import numpy as np
 
+from utils_multi import car_id2class, car_class2id
+
 # def get_add_objs(objname):
 #     # Decide how many additional objects you will augment and what will be the other types of objects
 #     if objname == 'ape':
@@ -157,8 +159,9 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
             bs[i][2*num_keypoints+1] = max_x - min_x;
             bs[i][2*num_keypoints+2] = max_y - min_y;
 
-            # Force to only one class
-            bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # # Force to only one class
+            # bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+            bs[i][0] = car_id2class[bs[i][0]]
             
             label[cc] = bs[i]
             cc += 1

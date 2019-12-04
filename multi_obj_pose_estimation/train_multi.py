@@ -298,7 +298,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
     model.print_network()
     original_seen     = model.seen
     model.seen        = 0
-    print('Already seen:', model.seen)
+    print('Already seen:', original_seen)
     region_loss.iter  = model.iter
 
     region_loss.seen  = model.seen

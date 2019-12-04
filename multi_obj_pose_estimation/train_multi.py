@@ -17,6 +17,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable # Useful info about autograd: http://pytorch.org/docs/master/notes/autograd.html
 
 import matplotlib.pyplot as plt
+import json
 
 from darknet_multi import Darknet
 from MeshPly import MeshPly
@@ -158,7 +159,6 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
                 model_id = int(truths[k][0])
                 with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
                     mesh = json.load(json_file)
-
                 # Note: already extended with "ones" for translation transformation
                 vertices      = np.c_[np.array(mesh['vertices']), np.ones((len(mesh['vertices']), 1))].transpose()
                 corners3D     = get_3D_corners(vertices)   

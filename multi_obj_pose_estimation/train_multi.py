@@ -303,7 +303,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
     region_loss.seen  = model.seen
 
-    processed_batches = model.seen/batch_size
+    processed_batches = model.seen//batch_size
     init_width        = model.width
     init_height       = model.height
     init_epoch        = model.seen//nsamples 
@@ -332,6 +332,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
         else:
             params += [{'params': [value], 'weight_decay': decay*batch_size}]
     optimizer = optim.SGD(model.parameters(), lr=learning_rate/batch_size, momentum=momentum, dampening=0, weight_decay=decay*batch_size)
+#    optimizer = optim.Adam(model.parameters(), lr=learning_rate/batch_size)
 
     evaluate = False
     if evaluate:
@@ -483,7 +484,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
             # SAVE
 
-            if (epoch % 5 == 0) and (epoch is not 0):
+            if (epoch+1) % 5 == 0:
 
                 logging('save training stats to %s/costs_%d.npz' % (backupdir, (original_seen+region_loss.seen)))
 
@@ -503,7 +504,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
             # VALID
 
-            if (epoch % 100 == 0) and (epoch is not 0):
+            if (epoch+1) % 100 == 0:
 
                 logging("Validation...")
                 eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, testing_errors_pixel)

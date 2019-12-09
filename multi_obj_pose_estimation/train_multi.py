@@ -83,6 +83,10 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
 
 
 
+    cur_model = model.module
+    #cur_model = model
+
+
     # Get validation file names
     with open(valid_images) as fp:
         tmp_files = fp.readlines()
@@ -92,7 +96,7 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
     model.eval()
     
     # Get the parser for the test dataset
-    valid_dataset = dataset_multi.listDataset(valid_images, shape=(model.module.width, model.module.height),
+    valid_dataset = dataset_multi.listDataset(valid_images, shape=(cur_model.width, cur_model.height),
                        shuffle=False,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
@@ -105,9 +109,9 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
         valid_dataset, batch_size=valid_batchsize, shuffle=False, **kwargs) 
 
     # Parameters
-    num_classes          = model.module.num_classes
-    anchors              = model.module.anchors
-    num_anchors          = model.module.num_anchors
+    num_classes          = cur_model.num_classes
+    anchors              = cur_model.anchors
+    num_anchors          = cur_model.num_anchors
     testing_error_pixel  = 0.0
     testing_samples      = 0.0
     errs_2d              = []
@@ -296,9 +300,9 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
         model.load_weights_until_last(initweightfile)
 
     model.print_network()
-    original_seen     = model.seen
-    model.seen        = 0
-    print('Already seen:', original_seen)
+    #original_seen     = model.seen
+    #model.seen        = 0
+    print('Already seen:', model.seen)
     region_loss.iter  = model.iter
 
     region_loss.seen  = model.seen
@@ -321,7 +325,10 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
     # Pass the model to GPU
     if use_cuda:
         # model = model.cuda() 
+        # cur_model = model
         model = torch.nn.DataParallel(model, device_ids=[0]).cuda() # Multiple GPU parallelism
+        cur_model = model.module
+
 
     # Get the optimizer
     params_dict = dict(model.named_parameters())
@@ -351,7 +358,7 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                                                                     shuffle=True,
                                                                     transform=transforms.Compose([transforms.ToTensor(),]), 
                                                                     train=True, 
-                                                                    seen=model.module.seen,
+                                                                    seen=cur_model.seen,
                                                                     batch_size=batch_size,
                                                                     num_workers=num_workers, bg_file_names=bg_file_names),
                                                         batch_size=batch_size, shuffle=False, **kwargs)
@@ -442,7 +449,6 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 t6 = time.time()
 
                 region_loss.seen = region_loss.seen + data.data.size(0)
-                #model.module.seen = model.module.seen + data.data.size(0)
 
                 # Compute loss, grow an array of losses for saving later on
                 loss = region_loss(output, target, epoch)
@@ -486,9 +492,9 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
 
             if (epoch+1) % 5 == 0:
 
-                logging('save training stats to %s/costs_%d.npz' % (backupdir, (original_seen+region_loss.seen)))
+                logging('save training stats to %s/costs_%d.npz' % (backupdir, (region_loss.seen)))
 
-                np.savez(os.path.join(backupdir, "costs_%d.npz" % (original_seen+region_loss.seen)),
+                np.savez(os.path.join(backupdir, "costs_%d.npz" % (region_loss.seen)),
                     training_iters=training_iters,
                     training_losses=training_losses,
                     testing_iters=testing_iters,
@@ -499,8 +505,9 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                 #     best_acc = np.mean(testing_accuracies[-6:]) 
                 #     logging('best model so far!')
 
-                logging('save weights to %s/model_%d.weights' % (backupdir, (original_seen+region_loss.seen)))
-                model.module.save_weights('%s/model_%d.weights' % (backupdir, (original_seen+region_loss.seen)))
+                logging('save weights to %s/model_%d.weights' % (backupdir, (region_loss.seen)))
+                cur_model.seen = region_loss.seen
+                cur_model.save_weights('%s/model_%d.weights' % (backupdir, (region_loss.seen)))
 
             # VALID
 

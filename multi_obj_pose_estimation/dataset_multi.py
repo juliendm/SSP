@@ -40,22 +40,22 @@ class listDataset(Dataset):
         assert index <= len(self), 'index range error'
         imgpath = self.lines[index].rstrip()
 
-        if self.train and index % self.batch_size == 0:
-            if self.seen < 20*self.nbatches*self.batch_size:
-               width = 13*self.cell_size
-               self.shape = (width, width)
-            elif self.seen < 40*self.nbatches*self.batch_size:
-               width = (random.randint(0,3) + 13)*self.cell_size
-               self.shape = (width, width)
-            elif self.seen < 60*self.nbatches*self.batch_size:
-               width = (random.randint(0,5) + 12)*self.cell_size
-               self.shape = (width, width)
-            elif self.seen < 80*self.nbatches*self.batch_size:
-               width = (random.randint(0,7) + 11)*self.cell_size
-               self.shape = (width, width)
-            else: 
-               width = (random.randint(0,9) + 10)*self.cell_size
-               self.shape = (width, width)
+        # if self.train and index % self.batch_size == 0:
+        #     if self.seen < 20*self.nbatches*self.batch_size:
+        #        width = 13*self.cell_size
+        #        self.shape = (width, width)
+        #     elif self.seen < 40*self.nbatches*self.batch_size:
+        #        width = (random.randint(0,3) + 13)*self.cell_size
+        #        self.shape = (width, width)
+        #     elif self.seen < 60*self.nbatches*self.batch_size:
+        #        width = (random.randint(0,5) + 12)*self.cell_size
+        #        self.shape = (width, width)
+        #     elif self.seen < 80*self.nbatches*self.batch_size:
+        #        width = (random.randint(0,7) + 11)*self.cell_size
+        #        self.shape = (width, width)
+        #     else: 
+        #        width = (random.randint(0,9) + 10)*self.cell_size
+        #        self.shape = (width, width)
 
         if self.train:
             # Decide on how much data augmentation you are going to apply

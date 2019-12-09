@@ -381,8 +381,8 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                         img = np.transpose(img, (1, 2, 0))
 
                         # Visualize
-                        plt.xlim((0, 416))
-                        plt.ylim((0, 416))
+                        plt.xlim((0, 1696))
+                        plt.ylim((0, 608))
                         plt.imshow(img)
                         
                         truths  = target[i].view(-1, num_labels)
@@ -413,10 +413,10 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
                         #     proj_corners_gt = np.transpose(compute_projection(corners3D, Rt_gt, intrinsic_calibration)) 
 
 
-                            plt.scatter(truths[k, 1]*416, truths[k, 2]*416, s=20, color='b')
+                            plt.scatter(truths[k, 1]*1696, truths[k, 2]*608, s=20, color='b')
                             corners_gt = truths[k, 3:19].reshape(8,2)
                             for edge in edges_corners:
-                                plt.plot(corners_gt[edge, 0]*416, corners_gt[edge, 1]*416, color='g', linewidth=1)
+                                plt.plot(corners_gt[edge, 0]*1696, corners_gt[edge, 1]*608, color='g', linewidth=1)
 
                         plt.gca().invert_yaxis()
                         plt.show()

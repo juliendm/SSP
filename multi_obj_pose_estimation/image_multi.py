@@ -123,7 +123,7 @@ def data_augmentation(img, shape, jitter, hue, saturation, exposure):
     return img, flip, dx,dy,sx,sy 
 
 def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max_num_gt):
-    
+
     num_labels = 2*num_keypoints+3 # +2 for width, height, +1 for class label
     label = np.zeros((max_num_gt,num_labels))
     if os.path.getsize(labpath):
@@ -138,7 +138,7 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
             ys = list()
             for j in range(num_keypoints):
                 xs.append(bs[i][2*j+1])
-                ys.append(bs[i][2*j+2])
+                ys.append((bs[i][2*j+2]*2710.0-1497.0)/(2710.0-1497.0))
 
             # Make sure the centroid of the object/hand is within image
             xs[0] = min(0.999, max(0, xs[0] * sx - dx)) 
@@ -151,13 +151,15 @@ def fill_truth_detection(labpath, w, h, flip, dx, dy, sx, sy, num_keypoints, max
                 bs[i][2*j+1] = xs[j]
                 bs[i][2*j+2] = ys[j]
 
-            # Debatable
-            min_x = min(xs);
-            max_x = max(xs);
-            min_y = min(ys);
-            max_y = max(ys);
-            bs[i][2*num_keypoints+1] = max_x - min_x;
-            bs[i][2*num_keypoints+2] = max_y - min_y;
+            # # Debatable
+            # min_x = min(xs);
+            # max_x = max(xs);
+            # min_y = min(ys);
+            # max_y = max(ys);
+            # bs[i][2*num_keypoints+1] = max_x - min_x;
+            # bs[i][2*num_keypoints+2] = max_y - min_y;
+
+            bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
 
             # # Force to only one class
             # bs[i][0] = 0 # !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -398,7 +400,7 @@ def load_data_detection(imgpath, shape, jitter, hue, saturation, exposure, bgpat
     maskpath = imgpath.replace('images', 'masks_rcnn').replace('.jpg', '.png')
 
     ## data augmentation
-    img = Image.open(imgpath).convert('RGB')
+    img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
 
     # mask = Image.open(maskpath).convert('RGB')
     # bg = Image.open(bgpath).convert('RGB')

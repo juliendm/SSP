@@ -21,6 +21,8 @@ from utils_multi import *
 from cfg import parse_cfg
 from MeshPly import MeshPly
 
+from utils_multi import car_id2class, car_class2id
+
 edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
 
 def valid(datacfg, cfgfile, weightfile, visualize=False):
@@ -131,7 +133,7 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
             # Iterate through each ground-truth object
             for k in range(num_gts):
                 # Read object model information, get 3D bounding box corners
-                model_id = int(truths[k][0])
+                model_id = car_class2id[int(truths[k][0])]
                 with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
                     mesh = json.load(json_file)
                 # Note: already extended with "ones" for translation transformation
@@ -168,7 +170,7 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
             # Iterate through each ground-truth object
             for k in range(len(boxes)):
                 # Read object model information, get 3D bounding box corners
-                model_id = int(truths[k][0])
+                model_id = car_class2id[int(boxes[k][-1])]
                 with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
                     mesh = json.load(json_file)
                 # Note: already extended with "ones" for translation transformation
@@ -177,7 +179,7 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
 
                 box_pr        = boxes[k]
                 
-                if box_pr[2*num_keypoints] > 0.3:
+                if box_pr[2*num_keypoints] > 0.00001:
 
                     # Denormalize the corner predictions 
                     corners2D_pr = np.array(np.reshape(box_pr[:2*num_keypoints], [-1, 2]), dtype='float32')            

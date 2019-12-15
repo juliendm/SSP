@@ -73,7 +73,7 @@ class listDataset(Dataset):
 
         else:
 
-            img = Image.open(imgpath).convert('RGB')
+            img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
             if self.shape:
                 img = img.resize(self.shape)
             

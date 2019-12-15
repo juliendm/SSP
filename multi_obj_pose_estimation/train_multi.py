@@ -240,7 +240,7 @@ def eval(model, niter, datacfg, modelcfg, testing_iters, testing_accuracies, tes
 
 
 
-def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
+def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0, visualize=False):
 
     # Parse data configuration file
     data_options = read_data_cfg(datacfg)
@@ -297,7 +297,19 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
     if initweightfile.split('.')[-1] == 'weights':
         model.load_weights(initweightfile)
     else:
-        model.load_weights_until_last(initweightfile)
+        model.load_weights(initweightfile)
+        #model.load_weights_until_last(initweightfile)
+
+    for name,param in model.named_parameters():
+        print(name)
+        # layer_index = int(name.split('.')[2])
+        # if layer_index > 100:
+        #     break
+        # param.requires_grad = False
+
+    for k, v in model.state_dict().items():
+        print(k,type(v))
+
 
     model.print_network()
     #original_seen     = model.seen
@@ -374,7 +386,6 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0):
             # Iterate through batches
             for batch_idx, (data, target) in enumerate(train_loader):
 
-                visualize = False
                 if visualize:
                     def truths_length(truths):
                         for i in range(50):

@@ -109,11 +109,11 @@ def main():
 
 
     for name,param in model.named_parameters():
-        print(name)
-        # layer_index = int(name.split('.')[1])
-        # if layer_index > 74:
-        #     break
-        # param.requires_grad = False
+        #print(name)
+        layer_index = int(name.split('.')[1])
+        if layer_index > (74-1):
+            break
+        param.requires_grad = False
     # for k, v in model.state_dict().items():
     #     print(k,type(v))
 
@@ -243,6 +243,8 @@ def train(epoch):
                     if truths[i][1] == 0:
                         return i
             for i in range(data.size(0)):
+                plt.figure()
+                
                 img = data[i, :, :, :]
                 img = img.numpy().squeeze()
                 img = np.transpose(img, (1, 2, 0))
@@ -259,8 +261,8 @@ def train(epoch):
                     plt.plot([x-w/2.0,x+w/2.0,x+w/2.0,x-w/2.0,x-w/2.0], [y-h/2.0,y-h/2.0,y+h/2.0,y+h/2.0,y-h/2.0], color='g', linewidth=1)
 
                 plt.gca().invert_yaxis()
-                plt.show()
-
+                #plt.show()
+                plt.savefig('%d_%d.jpg' % (batch_idx,i))
 
 
         t2 = time.time()

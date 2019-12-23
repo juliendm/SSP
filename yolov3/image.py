@@ -3,6 +3,7 @@
 import os
 from PIL import Image, ImageFile
 import numpy as np
+from utils import *
 
 # to avoid image file truncation error
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -108,7 +109,7 @@ def data_augmentation_crop(img, shape, jitter, hue, saturation, exposure):
     sx = ow / float(swidth)
     sy = oh / float(sheight)
     
-    flip = np.random.randint(2)
+    flip = 0 #np.random.randint(2)
 
     cropbb = np.array([pleft, ptop, pleft + swidth - 1, ptop + sheight - 1])
     # following two lines are old method. out of image boundary is filled with black (0,0,0)
@@ -168,9 +169,9 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
         
     # randomly distort hsv space
     new_img = random_distort_image(new_img, hue, sat, exp)
-        
+    
     # randomly flip
-    flip = np.random.randint(2)
+    flip = 0 #np.random.randint(2)
     if flip: 
         new_img = new_img.transpose(Image.FLIP_LEFT_RIGHT)
             

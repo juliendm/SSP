@@ -112,13 +112,13 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
                 print(img.shape)
 
                 #img = Image.fromarray(img, 'RGB')
-                img = Image.fromarray((img * 255).astype(np.uint8)).resize((im_width,im_height))
+                img = Image.fromarray((img * 255).astype(np.uint8))#.resize((im_width,im_height))
                 # size = tuple((np.array(im.size) * 0.99999).astype(int))
                 # new_image = np.array(im.resize(size, PIL.Image.BICUBIC))
 
 
-                plt.xlim((0, im_width))
-                plt.ylim((0, im_height))
+                plt.xlim((0, img.size[0]))
+                plt.ylim((0, img.size[1]))
                 plt.imshow(img)
             
             # For each image, get all the predictions
@@ -130,42 +130,42 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
             # Get how many object are present in the scene
             num_gts = truths_length(truths)
 
-            # Iterate through each ground-truth object
-            for k in range(num_gts):
-                # Read object model information, get 3D bounding box corners
-                model_id = car_class2id[int(truths[k][0])]
-                with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
-                    mesh = json.load(json_file)
-                # Note: already extended with "ones" for translation transformation
-                vertices      = np.c_[np.array(mesh['vertices']), np.ones((len(mesh['vertices']), 1))].transpose()
-                corners3D     = get_3D_corners(vertices)   
+            # # Iterate through each ground-truth object
+            # for k in range(num_gts):
+            #     # Read object model information, get 3D bounding box corners
+            #     model_id = car_class2id[int(truths[k][0])]
+            #     with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
+            #         mesh = json.load(json_file)
+            #     # Note: already extended with "ones" for translation transformation
+            #     vertices      = np.c_[np.array(mesh['vertices']), np.ones((len(mesh['vertices']), 1))].transpose()
+            #     corners3D     = get_3D_corners(vertices)   
 
-                box_gt = list()
-                for j in range(1, num_labels):
-                    box_gt.append(truths[k][j])
-                box_gt.extend([1.0, 1.0])
-                box_gt.append(truths[k][0])
+            #     box_gt = list()
+            #     for j in range(1, num_labels):
+            #         box_gt.append(truths[k][j])
+            #     box_gt.extend([1.0, 1.0])
+            #     box_gt.append(truths[k][0])
                 
-                # Denormalize the corner predictions 
-                corners2D_gt = np.array(np.reshape(box_gt[:2*num_keypoints], [-1, 2]), dtype='float32')
-                corners2D_gt[:, 0] = corners2D_gt[:, 0] * im_width
-                corners2D_gt[:, 1] = corners2D_gt[:, 1] * im_height
-                corners2D_gt_corrected = corners2D_gt #fix_corner_order(corners2D_gt) # Fix the order of corners
+            #     # Denormalize the corner predictions 
+            #     corners2D_gt = np.array(np.reshape(box_gt[:2*num_keypoints], [-1, 2]), dtype='float32')
+            #     corners2D_gt[:, 0] = corners2D_gt[:, 0] * im_width
+            #     corners2D_gt[:, 1] = corners2D_gt[:, 1] * im_height
+            #     corners2D_gt_corrected = corners2D_gt #fix_corner_order(corners2D_gt) # Fix the order of corners
                 
-                # Compute [R|t] by pnp
-                objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
-                K = np.array(intrinsic_calibration, dtype='float32')
-                R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
+            #     # Compute [R|t] by pnp
+            #     objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
+            #     K = np.array(intrinsic_calibration, dtype='float32')
+            #     R_gt, t_gt = pnp(objpoints3D,  corners2D_gt_corrected, K)
                 
-                # Compute pixel error
-                Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)
-                proj_2d_gt   = compute_projection(vertices, Rt_gt, intrinsic_calibration) 
-                proj_corners_gt = np.transpose(compute_projection(corners3D, Rt_gt, intrinsic_calibration)) 
+            #     # Compute pixel error
+            #     Rt_gt        = np.concatenate((R_gt, t_gt), axis=1)
+            #     proj_2d_gt   = compute_projection(vertices, Rt_gt, intrinsic_calibration) 
+            #     proj_corners_gt = np.transpose(compute_projection(corners3D, Rt_gt, intrinsic_calibration)) 
 
-                if visualize:
-                    # Projections
-                    for edge in edges_corners:
-                        plt.plot(proj_corners_gt[edge, 0], proj_corners_gt[edge, 1], color='g', linewidth=1.0)
+            #     if visualize:
+            #         # Projections
+            #         for edge in edges_corners:
+            #             plt.plot(proj_corners_gt[edge, 0], proj_corners_gt[edge, 1], color='g', linewidth=1.0)
 
             # Iterate through each ground-truth object
             for k in range(len(boxes)):
@@ -179,12 +179,12 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
 
                 box_pr        = boxes[k]
                 
-                if box_pr[2*num_keypoints] > 0.00001:
+                if box_pr[2*num_keypoints] > 0.3:
 
                     # Denormalize the corner predictions 
                     corners2D_pr = np.array(np.reshape(box_pr[:2*num_keypoints], [-1, 2]), dtype='float32')            
-                    corners2D_pr[:, 0] = corners2D_pr[:, 0] * im_width
-                    corners2D_pr[:, 1] = corners2D_pr[:, 1] * im_height
+                    corners2D_pr[:, 0] = corners2D_pr[:, 0] * img.size[0]
+                    corners2D_pr[:, 1] = corners2D_pr[:, 1] * img.size[1]
                     
                     # Compute [R|t] by pnp
                     objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
@@ -200,7 +200,7 @@ def valid(datacfg, cfgfile, weightfile, visualize=False):
                         # Projections
                         for edge in np.array(edges_corners):
                             plt.plot(proj_corners_pr[edge, 0], proj_corners_pr[edge, 1], color='b', linewidth=1.0)
-                            plt.plot(corners2D_pr[edge+1, 0], corners2D_pr[edge+1, 1], color='r', linewidth=1.0)
+                        #    plt.plot(corners2D_pr[edge+1, 0], corners2D_pr[edge+1, 1], color='r', linewidth=1.0)
 
             if visualize:
                 plt.gca().invert_yaxis()

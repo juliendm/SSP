@@ -301,14 +301,14 @@ def train(datacfg, modelcfg, initweightfile, pretrain_num_epochs=0, visualize=Fa
         #model.load_weights_until_last(initweightfile)
 
     for name,param in model.named_parameters():
-        print(name)
-        # layer_index = int(name.split('.')[2])
-        # if layer_index > 100:
-        #     break
-        # param.requires_grad = False
+#        print(name)
+        layer_index = int(name.split('.')[1])
+        if layer_index > 23:
+            break
+        param.requires_grad = False
 
-    for k, v in model.state_dict().items():
-        print(k,type(v))
+    # for k, v in model.state_dict().items():
+    #     print(k,type(v))
 
 
     model.print_network()

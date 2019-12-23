@@ -177,7 +177,8 @@ class RegionLoss(nn.Module):
             # once the coordinate predictions get better, start training for confidence as well
             loss  = loss_x + loss_y + loss_cls
     
-        print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, cls %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data, loss_y.data, loss_conf.data, loss_cls.data, loss.data))
+        if (self.seen-self.seen//100*100) < nB:
+            print('%d: nGT %d, recall %d, proposals %d, loss: x %f, y %f, conf %f, cls %f, total %f' % (self.seen, nGT, nCorrect, nProposals, loss_x.data, loss_y.data, loss_conf.data, loss_cls.data, loss.data))
         t4 = time.time()
 
         if False:

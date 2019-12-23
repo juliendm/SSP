@@ -8,6 +8,8 @@ import torch.nn as nn
 from torchvision import datasets, transforms
 import gc
 
+import matplotlib.pyplot as plt
+
 import dataset
 from utils import *
 from image import correct_yolo_boxes
@@ -100,8 +102,21 @@ def main():
 
     global model
     model = Darknet(cfgfile, use_cuda=use_cuda)
+
+    # wget https://pjreddie.com/media/files/darknet53.conv.74
     if weightfile is not None:
         model.load_weights(weightfile)
+
+
+    for name,param in model.named_parameters():
+        print(name)
+        # layer_index = int(name.split('.')[1])
+        # if layer_index > 74:
+        #     break
+        # param.requires_grad = False
+    # for k, v in model.state_dict().items():
+    #     print(k,type(v))
+
 
     model.print_network()
 
@@ -219,6 +234,35 @@ def train(epoch):
     t1 = time.time()
     avg_time = torch.zeros(9)
     for batch_idx, (data, target) in enumerate(train_loader):
+
+
+        visualize = False
+        if visualize:
+            def truths_length(truths):
+                for i in range(50):
+                    if truths[i][1] == 0:
+                        return i
+            for i in range(data.size(0)):
+                img = data[i, :, :, :]
+                img = img.numpy().squeeze()
+                img = np.transpose(img, (1, 2, 0))
+
+                plt.xlim((0, 1696))
+                plt.ylim((0, 608))
+                plt.imshow(img)
+                
+                truths  = target[i].view(-1, 5)
+                num_gts = truths_length(truths)
+                for k in range(num_gts):
+                    x,y,w,h = truths[k, 1]*1696,truths[k, 2]*608,truths[k, 3]*1696,truths[k, 4]*608
+                    plt.scatter(x, y, s=20, color='b')
+                    plt.plot([x-w/2.0,x+w/2.0,x+w/2.0,x-w/2.0,x-w/2.0], [y-h/2.0,y-h/2.0,y+h/2.0,y+h/2.0,y-h/2.0], color='g', linewidth=1)
+
+                plt.gca().invert_yaxis()
+                plt.show()
+
+
+
         t2 = time.time()
         adjust_learning_rate(optimizer, processed_batches)
         processed_batches = processed_batches + 1

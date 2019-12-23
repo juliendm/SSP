@@ -59,12 +59,12 @@ class listDataset(Dataset):
         imgpath = self.lines[index].rstrip()
 
         if self.train:
-            if self.seen % (self.batch_size * 10) == 0: # in paper, every 10 batches, but we did every 64 images
-                self.shape = self.get_different_scale()
+            # if self.seen % (self.batch_size * 10) == 0: # in paper, every 10 batches, but we did every 64 images
+            #     self.shape = self.get_different_scale()
             img, label = load_data_detection(imgpath, self.shape, self.crop, self.jitter, self.hue, self.saturation, self.exposure)
             label = torch.from_numpy(label)
         else:
-            img = Image.open(imgpath).convert('RGB')
+            img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
             if self.shape:
                 img, org_w, org_h = letterbox_image(img, self.shape[0], self.shape[1]), img.width, img.height
     

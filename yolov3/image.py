@@ -184,13 +184,21 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
         bs = np.loadtxt(labpath)
         if bs is None:
             return label
-        bs = np.reshape(bs, (-1, 5))
+
+        num_keypoints = 9
+        num_labels = 2*num_keypoints+3
+        bs = np.reshape(bs, (-1, num_labels))
+
         cc = 0
         for i in range(bs.shape[0]):
-            x1 = bs[i][1] - bs[i][3]/2
-            y1 = bs[i][2] - bs[i][4]/2
-            x2 = bs[i][1] + bs[i][3]/2
-            y2 = bs[i][2] + bs[i][4]/2
+
+            bs[i][2] = (bs[i][2]*2710.0-1497.0)/(2710.0-1497.0)
+            bs[i][20] = bs[i][20]*2710.0/(2710.0-1497.0)
+
+            x1 = bs[i][1] - bs[i][19]/2
+            y1 = bs[i][2] - bs[i][20]/2
+            x2 = bs[i][1] + bs[i][19]/2
+            y2 = bs[i][2] + bs[i][20]/2
             
             x1 = min(0.999, max(0, x1 * sx - dx)) 
             y1 = min(0.999, max(0, y1 * sy - dy)) 
@@ -199,17 +207,21 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
             
             bs[i][1] = (x1 + x2)/2 # center x
             bs[i][2] = (y1 + y2)/2 # center y
-            bs[i][3] = (x2 - x1)   # width
-            bs[i][4] = (y2 - y1)   # height
+            bs[i][19] = (x2 - x1)   # width
+            bs[i][20] = (y2 - y1)   # height
 
             if flip:
                 bs[i][1] =  0.999 - bs[i][1] 
             
             # when crop is applied, we should check the cropped width/height ratio
-            if bs[i][3] < 0.002 or bs[i][4] < 0.002 or \
-                (crop and (bs[i][3]/bs[i][4] > 20 or bs[i][4]/bs[i][3] > 20)):
+            if bs[i][19] < 0.002 or bs[i][20] < 0.002 or \
+                (crop and (bs[i][19]/bs[i][20] > 20 or bs[i][20]/bs[i][19] > 20)):
                 continue
-            label[cc] = bs[i]
+
+            bs[i][0] = car_id2class[bs[i][0]]
+
+            label[cc] = np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
+
             cc += 1
             if cc >= 50:
                 break
@@ -256,7 +268,7 @@ def load_data_detection(imgpath, shape, crop, jitter, hue, saturation, exposure)
     labpath = imgpath.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
 
     ## data augmentation
-    img = Image.open(imgpath).convert('RGB')
+    img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
     if crop:         # marvis version
         img,flip,dx,dy,sx,sy = data_augmentation_crop(img, shape, jitter, hue, saturation, exposure)
     else:            # original version

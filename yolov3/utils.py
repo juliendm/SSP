@@ -9,6 +9,11 @@ import itertools
 import struct # get_image_size
 import imghdr # get_image_size
 
+car_name2id = {'019-SUV': 46, '036-CAR01': 47, '037-CAR02': 16, 'MG-GT-2015': 30, 'Skoda_Fabia-2011': 67, 'aodi-Q7-SUV': 48, 'aodi-a6': 17, 'baojun-310-2017': 0, 'baojun-510': 49, 'baoma-330': 18, 'baoma-530': 19, 'baoma-X5': 50, 'baoshijie-kayan': 51, 'baoshijie-paoche': 20, 'beiqi-huansu-H3': 52, 'benchi-GLK-300': 53, 'benchi-ML500': 54, 'benchi-SUR': 71, 'bentian-fengfan': 21, 'biaozhi-3008': 1, 'biaozhi-408': 22, 'biaozhi-508': 23, 'biaozhi-liangxiang': 2, 'bieke': 37, 'bieke-kaiyue': 24, 'bieke-yinglang-XT': 3, 'biyadi-2x-F0': 4, 'biyadi-F3': 38, 'biyadi-qin': 39, 'biyadi-tang': 72, 'changan-CS35-2012': 73, 'changan-cs5': 74, 'changanbenben': 5, 'changcheng-H6-2016': 75, 'dazhong': 40, 'dazhong-SUV': 76, 'dazhongmaiteng': 41, 'dihao-EV': 42, 'dongfeng-DS5': 6, 'dongfeng-fengguang-S560': 77, 'dongfeng-fengxing-SX6': 78, 'dongfeng-xuetielong-C6': 43, 'dongfeng-yulong-naruijie': 45, 'dongnan-V3-lingyue-2011': 44, 'feiyate': 7, 'fengtian-MPV': 9, 'fengtian-SUV-gai': 56, 'fengtian-liangxiang': 8, 'fengtian-puladuo-06': 55, 'fengtian-weichi-2006': 15, 'fute': 25, 'guangqi-chuanqi-GS4-2015': 57, 'haima-3': 26, 'jianghuai-ruifeng-S3': 58, 'jili-boyue': 59, 'jilixiongmao-2015': 10, 'jipu-3': 60, 'kaidilake-CTS': 27, 'leikesasi': 28, 'lingmu-SX4-2012': 13, 'lingmu-aotuo-2009': 11, 'lingmu-swift': 12, 'linken-SUV': 61, 'lufeng-X8': 62, 'mazida-6-2015': 29, 'oubao': 31, 'qirui-ruihu': 63, 'qiya': 32, 'rongwei-750': 33, 'rongwei-RX5': 64, 'sanling-oulande': 65, 'sikeda-SUV': 66, 'sikeda-jingrui': 14, 'supai-2016': 34, 'xiandai-i25-2016': 68, 'xiandai-suonata': 35, 'yingfeinidi-SUV': 70, 'yingfeinidi-qx80': 69, 'yiqi-benteng-b50': 36}
+car_id2name = {v: k for k, v in car_name2id.items()}
+car_id2class = {2:0, 6:1, 7:2, 8:3, 9:4, 12:5, 14:6, 16:7, 18:8, 19:9, 20:10, 23:11, 25:12, 27:13, 28:14, 31:15, 32:16, 35:17, 37:18, 40:19, 43:20, 46:21, 47:22, 48:23, 50:24, 51:25, 54:26, 56:27, 60:28, 61:29, 66:30, 70:31, 71:32, 76:33}
+car_class2id = {v: k for k, v in car_id2class.items()}
+
 def sigmoid(x):
     return 1.0/(math.exp(-x)+1.)
 
@@ -322,7 +327,9 @@ def read_truths(lab_path):
         return np.array([])
     if os.path.getsize(lab_path):
         truths = np.loadtxt(lab_path)
-        truths = truths.reshape(truths.size//5, 5) # to avoid single truth problem
+        num_keypoints = 9
+        num_labels = 2*num_keypoints+3
+        truths = truths.reshape(-1, num_labels) # to avoid single truth problem
         return truths
     else:
         return np.array([])
@@ -331,9 +338,12 @@ def read_truths_args(lab_path, min_box_scale):
     truths = read_truths(lab_path)
     new_truths = []
     for i in range(truths.shape[0]):
-        if truths[i][3] < min_box_scale:
+        if truths[i][19] < min_box_scale:
             continue
-        new_truths.append([truths[i][0], truths[i][1], truths[i][2], truths[i][3], truths[i][4]])
+        truths[i][2] = (truths[i][2]*2710.0-1497.0)/(2710.0-1497.0)
+        truths[i][20] = truths[i][20]*2710.0/(2710.0-1497.0)
+        truths[i][0] = car_id2class[truths[i][0]]
+        new_truths.append([truths[i][0], truths[i][1], truths[i][2], truths[i][19], truths[i][20]])
     return np.array(new_truths)
 
 def load_class_names(namesfile):

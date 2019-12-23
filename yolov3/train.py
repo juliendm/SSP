@@ -103,7 +103,7 @@ def main():
     if weightfile is not None:
         model.load_weights(weightfile)
 
-    #model.print_network()
+    model.print_network()
 
     nsamples = file_lines(trainlist)
     #initialize the model

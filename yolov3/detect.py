@@ -25,7 +25,7 @@ def detect(cfgfile, weightfile, imgfile):
     if use_cuda:
         m.cuda()
 
-    img = Image.open(imgfile).convert('RGB')
+    img = Image.open(imgfile).convert('RGB').crop((0,1497,3384,2710))
     sized = letterbox_image(img, m.width, m.height)
 
     start = time.time()

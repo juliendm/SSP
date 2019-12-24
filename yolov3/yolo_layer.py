@@ -59,7 +59,7 @@ class YoloLayer(nn.Module):
         anchors = anchors.to("cpu")
 
         for b in range(nB):
-            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors].t()  # Filter!!!
+            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors,[0,1,2*num_keypoints,2*num_keypoints+1]].t()  # Filter!!!
             cur_ious = torch.zeros(nAnchors)
             tbox = target[b].view(-1,num_labels).to("cpu")
 
@@ -88,7 +88,7 @@ class YoloLayer(nn.Module):
                 _, best_n = torch.max(multi_bbox_ious(anchor_boxes, tmp_gt_boxes, x1y1x2y2=False), 0)
 
                 gt_box = torch.FloatTensor([gx, gy, gw, gh])
-                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi] # Filter!!!
+                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi,[0,1,2*num_keypoints,2*num_keypoints+1]] # Filter!!!
                 iou = bbox_iou(gt_box, pred_box, x1y1x2y2=False)
 
                 obj_mask  [b][best_n][gj][gi] = 1

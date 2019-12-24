@@ -178,50 +178,97 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
     dx, dy = dx/net_w, dy/net_h
     return new_img, flip, dx, dy, sx, sy 
 
+
+
+
+
+
+
 def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
     max_boxes = 50
-    label = np.zeros((max_boxes,5))
+    num_keypoints = 9
+    num_labels = 2*num_keypoints+3
+
+    label = np.zeros((max_boxes,num_labels))
+
     if os.path.getsize(labpath):
         bs = np.loadtxt(labpath)
         if bs is None:
             return label
 
-        num_keypoints = 9
-        num_labels = 2*num_keypoints+3
+
         bs = np.reshape(bs, (-1, num_labels))
 
         cc = 0
         for i in range(bs.shape[0]):
 
-            bs[i][2] = (bs[i][2]*2710.0-1497.0)/(2710.0-1497.0)
-            bs[i][20] = bs[i][20]*2710.0/(2710.0-1497.0)
+            xs = list()
+            ys = list()
+            for j in range(num_keypoints):
+                xs.append(bs[i][2*j+1])
+                ys.append((bs[i][2*j+2]*2710.0-1497.0)/(2710.0-1497.0))
 
-            x1 = bs[i][1] - bs[i][19]/2
-            y1 = bs[i][2] - bs[i][20]/2
-            x2 = bs[i][1] + bs[i][19]/2
-            y2 = bs[i][2] + bs[i][20]/2
+            # Make sure the centroid of the object/hand is within image
+            xs[0] = min(0.999, max(0, xs[0] * sx - dx)) 
+            ys[0] = min(0.999, max(0, ys[0] * sy - dy)) 
+            for j in range(1,num_keypoints):
+                xs[j] = xs[j] * sx - dx 
+                ys[j] = ys[j] * sy - dy 
             
-            x1 = min(0.999, max(0, x1 * sx - dx)) 
-            y1 = min(0.999, max(0, y1 * sy - dy)) 
-            x2 = min(0.999, max(0, x2 * sx - dx))
-            y2 = min(0.999, max(0, y2 * sy - dy))
-            
-            bs[i][1] = (x1 + x2)/2 # center x
-            bs[i][2] = (y1 + y2)/2 # center y
-            bs[i][19] = (x2 - x1)   # width
-            bs[i][20] = (y2 - y1)   # height
+            for j in range(num_keypoints):
+                bs[i][2*j+1] = xs[j]
+                bs[i][2*j+2] = ys[j]
+
+            min_x = min(xs);
+            max_x = max(xs);
+            min_y = min(ys);
+            max_y = max(ys);
+            bs[i][2*num_keypoints+1] = max_x - min_x;
+            bs[i][2*num_keypoints+2] = max_y - min_y;
+
+            # # Following is taken care of by above
+            # bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
 
             if flip:
-                bs[i][1] =  0.999 - bs[i][1] 
-            
-            # when crop is applied, we should check the cropped width/height ratio
+                raise NotImplementedError
+
             if bs[i][19] < 0.002 or bs[i][20] < 0.002 or \
                 (crop and (bs[i][19]/bs[i][20] > 20 or bs[i][20]/bs[i][19] > 20)):
-                continue
+                raise NotImplementedError
+
+
+            # # 2D
+
+            # bs[i][2] = (bs[i][2]*2710.0-1497.0)/(2710.0-1497.0)
+            # bs[i][20] = bs[i][20]*2710.0/(2710.0-1497.0)
+
+            # x1 = bs[i][1] - bs[i][19]/2
+            # y1 = bs[i][2] - bs[i][20]/2
+            # x2 = bs[i][1] + bs[i][19]/2
+            # y2 = bs[i][2] + bs[i][20]/2
+            
+            # x1 = min(0.999, max(0, x1 * sx - dx)) 
+            # y1 = min(0.999, max(0, y1 * sy - dy)) 
+            # x2 = min(0.999, max(0, x2 * sx - dx))
+            # y2 = min(0.999, max(0, y2 * sy - dy))
+            
+            # bs[i][1] = (x1 + x2)/2 # center x
+            # bs[i][2] = (y1 + y2)/2 # center y
+            # bs[i][19] = (x2 - x1)   # width
+            # bs[i][20] = (y2 - y1)   # height
+
+            # if flip:
+            #     bs[i][1] =  0.999 - bs[i][1] 
+            
+            # # when crop is applied, we should check the cropped width/height ratio
+            # if bs[i][19] < 0.002 or bs[i][20] < 0.002 or \
+            #     (crop and (bs[i][19]/bs[i][20] > 20 or bs[i][20]/bs[i][19] > 20)):
+            #     continue
+
 
             bs[i][0] = car_id2class[bs[i][0]]
 
-            label[cc] = np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
+            label[cc] = bs[i] #np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
 
             cc += 1
             if cc >= 50:

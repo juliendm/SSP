@@ -233,6 +233,9 @@ def train(epoch):
     model.train()
     t1 = time.time()
     avg_time = torch.zeros(9)
+
+    print('Done with preprocessing')
+
     for batch_idx, (data, target) in enumerate(train_loader):
 
 
@@ -242,9 +245,13 @@ def train(epoch):
                 for i in range(50):
                     if truths[i][1] == 0:
                         return i
+            edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
+            num_keypoints = 9
+            num_labels = 2*num_keypoints+3
+
             for i in range(data.size(0)):
                 plt.figure()
-                
+
                 img = data[i, :, :, :]
                 img = img.numpy().squeeze()
                 img = np.transpose(img, (1, 2, 0))
@@ -253,17 +260,18 @@ def train(epoch):
                 plt.ylim((0, 608))
                 plt.imshow(img)
                 
-                truths  = target[i].view(-1, 5)
+                truths  = target[i].view(-1, num_labels)
+                
                 num_gts = truths_length(truths)
-                for k in range(num_gts):
-                    x,y,w,h = truths[k, 1]*1696,truths[k, 2]*608,truths[k, 3]*1696,truths[k, 4]*608
-                    plt.scatter(x, y, s=20, color='b')
-                    plt.plot([x-w/2.0,x+w/2.0,x+w/2.0,x-w/2.0,x-w/2.0], [y-h/2.0,y-h/2.0,y+h/2.0,y+h/2.0,y-h/2.0], color='g', linewidth=1)
+                for k in range(num_gts): 
+                    plt.scatter(truths[k, 1]*1696, truths[k, 2]*608, s=20, color='b')
+                    corners_gt = truths[k, 3:19].reshape(8,2)
+                    for edge in edges_corners:
+                        plt.plot(corners_gt[edge, 0]*1696, corners_gt[edge, 1]*608, color='g', linewidth=1)
 
                 plt.gca().invert_yaxis()
-                #plt.show()
+                # plt.show()
                 plt.savefig('%d_%d.jpg' % (batch_idx,i))
-
 
         t2 = time.time()
         adjust_learning_rate(optimizer, processed_batches)

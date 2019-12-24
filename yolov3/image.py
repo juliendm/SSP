@@ -219,15 +219,19 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
                 bs[i][2*j+1] = xs[j]
                 bs[i][2*j+2] = ys[j]
 
-            min_x = min(xs);
-            max_x = max(xs);
-            min_y = min(ys);
-            max_y = max(ys);
-            bs[i][2*num_keypoints+1] = max_x - min_x;
-            bs[i][2*num_keypoints+2] = max_y - min_y;
+            # # Discutable
+            # min_x = min(xs);
+            # max_x = max(xs);
+            # min_y = min(ys);
+            # max_y = max(ys);
+            # bs[i][2*num_keypoints+1] = max_x - min_x;
+            # bs[i][2*num_keypoints+2] = max_y - min_y;
 
-            # # Following is taken care of by above
-            # bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
+            # Following is taken care of by above
+            if sx == 1.0 and sy == 1.0 and dx == 0.0 and dy == 0.0:
+                bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
+            else:
+                raise NotImplementedError
 
             if flip:
                 raise NotImplementedError

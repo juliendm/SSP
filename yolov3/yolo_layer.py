@@ -45,7 +45,7 @@ class YoloLayer(nn.Module):
         noobj_mask = torch.ones (nB, nA, nH, nW)
         obj_mask   = torch.zeros(nB, nA, nH, nW)
         coord_mask = torch.zeros(nB, nA, nH, nW)
-        tcoord     = torch.zeros( 4, nB, nA, nH, nW)
+        tcoord     = torch.zeros(num_labels-1, nB, nA, nH, nW)
         tconf      = torch.zeros(nB, nA, nH, nW)
         tcls       = torch.zeros(nB, nA, nH, nW, self.num_classes)
 
@@ -59,7 +59,7 @@ class YoloLayer(nn.Module):
         anchors = anchors.to("cpu")
 
         for b in range(nB):
-            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors].t()
+            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors].t()  # Filter!!!
             cur_ious = torch.zeros(nAnchors)
             tbox = target[b].view(-1,num_labels).to("cpu")
 
@@ -67,7 +67,7 @@ class YoloLayer(nn.Module):
                 if tbox[t][1] == 0:
                     break
                 gx, gy = tbox[t][1] * nW, tbox[t][2] * nH
-                gw, gh = tbox[t][3] * self.net_width, tbox[t][4] * self.net_height
+                gw, gh = tbox[t][2*num_keypoints+1] * self.net_width, tbox[t][2*num_keypoints+2] * self.net_height
                 cur_gt_boxes = torch.FloatTensor([gx, gy, gw, gh]).repeat(nAnchors,1).t()
                 cur_ious = torch.max(cur_ious, multi_bbox_ious(cur_pred_boxes, cur_gt_boxes, x1y1x2y2=False))
             ignore_ix = (cur_ious>self.ignore_thresh).view(nA,nH,nW)
@@ -77,8 +77,9 @@ class YoloLayer(nn.Module):
                 if tbox[t][1] == 0:
                     break
                 nGT += 1
+
                 gx, gy = tbox[t][1] * nW, tbox[t][2] * nH
-                gw, gh = tbox[t][3] * self.net_width, tbox[t][4] * self.net_height
+                gw, gh = tbox[t][2*num_keypoints+1] * self.net_width, tbox[t][2*num_keypoints+2] * self.net_height
                 gw, gh = gw.float(), gh.float()
                 gi, gj = int(gx), int(gy)
 
@@ -87,16 +88,19 @@ class YoloLayer(nn.Module):
                 _, best_n = torch.max(multi_bbox_ious(anchor_boxes, tmp_gt_boxes, x1y1x2y2=False), 0)
 
                 gt_box = torch.FloatTensor([gx, gy, gw, gh])
-                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi]
+                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi] # Filter!!!
                 iou = bbox_iou(gt_box, pred_box, x1y1x2y2=False)
 
                 obj_mask  [b][best_n][gj][gi] = 1
                 noobj_mask[b][best_n][gj][gi] = 0
-                coord_mask[b][best_n][gj][gi] = 2. - tbox[t][3]*tbox[t][4]
-                tcoord [0][b][best_n][gj][gi] = gx - gi
-                tcoord [1][b][best_n][gj][gi] = gy - gj
-                tcoord [2][b][best_n][gj][gi] = math.log(gw/anchors[best_n][0])
-                tcoord [3][b][best_n][gj][gi] = math.log(gh/anchors[best_n][1])
+                coord_mask[b][best_n][gj][gi] = 2. - tbox[t][2*num_keypoints+1]*tbox[t][2*num_keypoints+2]
+
+                for i in range(num_keypoints):
+                    tcoord[2*i][b][best_n][gj][gi]   = tbox[t][2*i+1] * nW - gi
+                    tcoord[2*i+1][b][best_n][gj][gi] = tbox[t][2*i+2] * nW - gj
+
+                tcoord[2*num_keypoints][b][best_n][gj][gi] = math.log(gw/anchors[best_n][0])
+                tcoord[2*num_keypoints+1][b][best_n][gj][gi] = math.log(gh/anchors[best_n][1])
                 tcls      [b][best_n][gj][gi][int(tbox[t][0])] = 1
                 tconf     [b][best_n][gj][gi] = iou if self.rescore else 1.
 
@@ -124,14 +128,14 @@ class YoloLayer(nn.Module):
         anchors = mask_tuple['a'].view(nA, anchor_step).to(self.device)
         cls_anchor_dim = nB*nA*nH*nW
 
-        output  = output.view(nB, nA, (2*num_keypoints+1+nC), nH, nW)
-        cls_grid = torch.linspace(2*num_keypoints+1,2*num_keypoints+1+nC-1,nC).long().to(self.device)
-        ix = torch.LongTensor(range(0,5)).to(self.device)
-        pred_boxes = torch.FloatTensor(4, cls_anchor_dim).to(self.device)
+        output  = output.view(nB, nA, (num_labels+nC), nH, nW)
+        cls_grid = torch.linspace(num_labels,num_labels+nC-1,nC).long().to(self.device)
+        ix = torch.LongTensor(range(0,num_labels)).to(self.device)
+        pred_boxes = torch.FloatTensor(num_labels-1, cls_anchor_dim).to(self.device)
 
-        coord = output.index_select(2, ix[0:4]).view(nB*nA, -1, nH*nW).transpose(0,1).contiguous().view(-1,cls_anchor_dim)  # x, y, w, h
-        coord[0:2] = coord[0:2].sigmoid()
-        conf = output.index_select(2, ix[4]).view(cls_anchor_dim).sigmoid()
+        coord = output.index_select(2, ix[0:num_labels-1]).view(nB*nA, -1, nH*nW).transpose(0,1).contiguous().view(-1,cls_anchor_dim)  # x1, y1, x2, y2, ...
+        coord[0:2*num_keypoints] = coord[0:2*num_keypoints].sigmoid()
+        conf = output.index_select(2, ix[num_labels-1]).view(cls_anchor_dim).sigmoid()
 
         cls  = output.index_select(2, cls_grid)
         cls  = cls.view(nB*nA, nC, nH*nW).transpose(1,2).contiguous().view(cls_anchor_dim, nC).to(self.device)
@@ -142,12 +146,14 @@ class YoloLayer(nn.Module):
         anchor_w = anchors.index_select(1, ix[0]).repeat(nB, nH*nW).view(cls_anchor_dim)
         anchor_h = anchors.index_select(1, ix[1]).repeat(nB, nH*nW).view(cls_anchor_dim)
 
-        pred_boxes[0] = coord[0] + grid_x
-        pred_boxes[1] = coord[1] + grid_y
-        pred_boxes[2] = coord[2].exp() * anchor_w
-        pred_boxes[3] = coord[3].exp() * anchor_h
+        for i in range(num_keypoints):
+            pred_boxes[2*i]   = coord[2*i]   + grid_x
+            pred_boxes[2*i+1] = coord[2*i+1] + grid_y
+        pred_boxes[2*num_keypoints]   = coord[2*num_keypoints].exp() * anchor_w
+        pred_boxes[2*num_keypoints+1] = coord[2*num_keypoints+1].exp() * anchor_h
+
         # for build_targets. it works faster on CPU than on GPU
-        pred_boxes = convert2cpu(pred_boxes.transpose(0,1).contiguous().view(-1,4)).detach()
+        pred_boxes = convert2cpu(pred_boxes.transpose(0,1).contiguous().view(-1,num_labels-1)).detach()
 
         t2 = time.time()
         nGT, nRecall, nRecall75, obj_mask, noobj_mask, coord_mask, tcoord, tconf, tcls = \
@@ -159,7 +165,7 @@ class YoloLayer(nn.Module):
         nProposals = int((conf > 0.25).sum())
 
         coord = coord[:,obj_mask]
-        tcoord = tcoord.view(4, cls_anchor_dim)[:,obj_mask].to(self.device)        
+        tcoord = tcoord.view(num_labels-1, cls_anchor_dim)[:,obj_mask].to(self.device)        
 
         tconf = tconf.view(cls_anchor_dim).to(self.device)        
 
@@ -167,8 +173,8 @@ class YoloLayer(nn.Module):
         tcls = tcls.view(cls_anchor_dim, nC)[obj_mask,:].to(self.device)
 
         t3 = time.time()
-        loss_coord = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
-                     nn.MSELoss(reduction='sum')(coord[2:4], tcoord[2:4])/nB
+        loss_coord = nn.BCELoss(reduction='sum')(coord[0:2*num_keypoints], tcoord[0:2*num_keypoints])/nB + \
+                     nn.MSELoss(reduction='sum')(coord[2*num_keypoints:2*num_keypoints+2], tcoord[2*num_keypoints:2*num_keypoints+2])/nB
         loss_conf  = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls   = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 

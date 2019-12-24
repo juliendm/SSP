@@ -36,6 +36,10 @@ class YoloLayer(nn.Module):
         return {'x':output, 'a':masked_anchors, 'n':num_anchors}
 
     def build_targets(self, pred_boxes, target, anchors, nA, nH, nW):
+
+        num_keypoints = 9
+        num_labels = 2*num_keypoints+3
+
         nB = target.size(0)
         anchor_step = anchors.size(1) # anchors[nA][anchor_step]
         noobj_mask = torch.ones (nB, nA, nH, nW)
@@ -57,7 +61,7 @@ class YoloLayer(nn.Module):
         for b in range(nB):
             cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors].t()
             cur_ious = torch.zeros(nAnchors)
-            tbox = target[b].view(-1,5).to("cpu")
+            tbox = target[b].view(-1,num_labels).to("cpu")
 
             for t in range(50):
                 if tbox[t][1] == 0:
@@ -104,6 +108,10 @@ class YoloLayer(nn.Module):
         return nGT, nRecall, nRecall75, obj_mask, noobj_mask, coord_mask, tcoord, tconf, tcls
 
     def forward(self, output, target):
+
+        num_keypoints = 9
+        num_labels = 2*num_keypoints+3
+
         #output : BxAs*(4+1+num_classes)*H*W
         mask_tuple = self.get_mask_boxes(output)
         t0 = time.time()
@@ -116,8 +124,8 @@ class YoloLayer(nn.Module):
         anchors = mask_tuple['a'].view(nA, anchor_step).to(self.device)
         cls_anchor_dim = nB*nA*nH*nW
 
-        output  = output.view(nB, nA, (5+nC), nH, nW)
-        cls_grid = torch.linspace(5,5+nC-1,nC).long().to(self.device)
+        output  = output.view(nB, nA, (2*num_keypoints+1+nC), nH, nW)
+        cls_grid = torch.linspace(2*num_keypoints+1,2*num_keypoints+1+nC-1,nC).long().to(self.device)
         ix = torch.LongTensor(range(0,5)).to(self.device)
         pred_boxes = torch.FloatTensor(4, cls_anchor_dim).to(self.device)
 

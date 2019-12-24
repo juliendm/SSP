@@ -372,6 +372,9 @@ def test(epoch):
     proposals   = 0.0
     correct     = 0.0
 
+    num_keypoints = 9
+    num_labels = 2*num_keypoints+3
+
     if cur_model.net_name() == 'region': # region_layer
         shape=(0,0)
     else:
@@ -387,7 +390,7 @@ def test(epoch):
                 correct_yolo_boxes(boxes, org_w[k], org_h[k], cur_model.width, cur_model.height)
                 boxes = np.array(nms(boxes, nms_thresh))
 
-                truths = target[k].view(-1, 5)
+                truths = target[k].view(-1, num_labels)
                 num_gts = truths_length(truths)
                 total = total + num_gts
                 num_pred = len(boxes)

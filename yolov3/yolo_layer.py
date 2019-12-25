@@ -134,7 +134,7 @@ class YoloLayer(nn.Module):
         pred_boxes = torch.FloatTensor(num_labels-1, cls_anchor_dim).to(self.device)
 
         coord = output.index_select(2, ix[0:num_labels-1]).view(nB*nA, -1, nH*nW).transpose(0,1).contiguous().view(-1,cls_anchor_dim)  # x1, y1, x2, y2, ...
-        coord[0:2*num_keypoints] = coord[0:2*num_keypoints].sigmoid()
+        coord[0:2] = coord[0:2].sigmoid()
         conf = output.index_select(2, ix[num_labels-1]).view(cls_anchor_dim).sigmoid()
 
         cls  = output.index_select(2, cls_grid)
@@ -174,7 +174,7 @@ class YoloLayer(nn.Module):
 
         t3 = time.time()
         loss_coord = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
-                     nn.MSELoss(reduction='sum')(coord[2*num_keypoints:2*num_keypoints+2], tcoord[2*num_keypoints:2*num_keypoints+2])/nB
+                     nn.MSELoss(reduction='sum')(coord[2:2*num_keypoints+2], tcoord[2:2*num_keypoints+2])/nB
         loss_conf  = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls   = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 

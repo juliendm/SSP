@@ -137,13 +137,17 @@ def get_all_boxes(output, netshape, conf_thresh, num_classes, only_objectness=1,
     return all_boxes
 
 def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_anchors, only_objectness=1, validation=False, use_cuda=True):
+
+    num_keypoints = 9
+    num_labels = 2*num_keypoints+3
+
     device = torch.device("cuda" if use_cuda else "cpu")
     anchors = anchors.to(device)
     anchor_step = anchors.size(0)//num_anchors
     if output.dim() == 3:
         output = output.unsqueeze(0)
     batch = output.size(0)
-    assert(output.size(1) == (5+num_classes)*num_anchors)
+    assert(output.size(1) == (num_labels+num_classes)*num_anchors)
     h = output.size(2)
     w = output.size(3)
     cls_anchor_dim = batch*num_anchors*h*w
@@ -154,7 +158,7 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
 
     t0 = time.time()
     all_boxes = []
-    output = output.view(batch*num_anchors, 5+num_classes, h*w).transpose(0,1).contiguous().view(5+num_classes, cls_anchor_dim)
+    output = output.view(batch*num_anchors, num_labels+num_classes, h*w).transpose(0,1).contiguous().view(num_labels+num_classes, cls_anchor_dim)
 
     grid_x = torch.linspace(0, w-1, w).repeat(batch*num_anchors, h, 1).view(cls_anchor_dim).to(device)
     grid_y = torch.linspace(0, h-1, h).repeat(w,1).t().repeat(batch*num_anchors, 1, 1).view(cls_anchor_dim).to(device)
@@ -162,12 +166,14 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
     anchor_w = anchors.view(num_anchors, anchor_step).index_select(1, ix[0]).repeat(batch, h*w).view(cls_anchor_dim)
     anchor_h = anchors.view(num_anchors, anchor_step).index_select(1, ix[1]).repeat(batch, h*w).view(cls_anchor_dim)
 
+    # HAS TO BE IMPROVED
     xs, ys = output[0].sigmoid() + grid_x, output[1].sigmoid() + grid_y
-    ws, hs = output[2].exp() * anchor_w.detach(), output[3].exp() * anchor_h.detach()
-    det_confs = output[4].sigmoid()
+
+    ws, hs = output[2*num_keypoints].exp() * anchor_w.detach(), output[2*num_keypoints+1].exp() * anchor_h.detach()
+    det_confs = output[num_labels-1].sigmoid()
 
     # by ysyun, dim=1 means input is 2D or even dimension else dim=0
-    cls_confs = torch.nn.Softmax(dim=1)(output[5:5+num_classes].transpose(0,1)).detach()
+    cls_confs = torch.nn.Softmax(dim=1)(output[num_labels:num_labels+num_classes].transpose(0,1)).detach()
     cls_max_confs, cls_max_ids = torch.max(cls_confs, 1)
     cls_max_confs = cls_max_confs.view(-1)
     cls_max_ids = cls_max_ids.view(-1)
@@ -340,7 +346,7 @@ def read_truths_args(lab_path, min_box_scale):
     truths = read_truths(lab_path)
     new_truths = []
     for i in range(truths.shape[0]):
-        
+
         new_truths.append(car_id2class[truths[i][0]])
         for j in range(num_keypoints):
             new_truths.append(truths[i][2*j+1])

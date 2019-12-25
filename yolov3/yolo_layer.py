@@ -97,7 +97,7 @@ class YoloLayer(nn.Module):
 
                 for i in range(num_keypoints):
                     tcoord[2*i][b][best_n][gj][gi]   = tbox[t][2*i+1] * nW - gi
-                    tcoord[2*i+1][b][best_n][gj][gi] = tbox[t][2*i+2] * nW - gj
+                    tcoord[2*i+1][b][best_n][gj][gi] = tbox[t][2*i+2] * nH - gj
 
                 tcoord[2*num_keypoints][b][best_n][gj][gi] = math.log(gw/anchors[best_n][0])
                 tcoord[2*num_keypoints+1][b][best_n][gj][gi] = math.log(gh/anchors[best_n][1])
@@ -173,7 +173,7 @@ class YoloLayer(nn.Module):
         tcls = tcls.view(cls_anchor_dim, nC)[obj_mask,:].to(self.device)
 
         t3 = time.time()
-        loss_coord = nn.BCELoss(reduction='sum')(coord[0:2*num_keypoints], tcoord[0:2*num_keypoints])/nB + \
+        loss_coord = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
                      nn.MSELoss(reduction='sum')(coord[2*num_keypoints:2*num_keypoints+2], tcoord[2*num_keypoints:2*num_keypoints+2])/nB
         loss_conf  = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls   = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB

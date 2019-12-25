@@ -265,7 +265,7 @@ def train(epoch):
                 num_gts = truths_length(truths)
                 for k in range(num_gts): 
                     plt.scatter(truths[k, 1]*1696, truths[k, 2]*608, s=20, color='b')
-                    corners_gt = truths[k, 3:19].reshape(8,2)
+                    corners_gt = truths[k, 3:2*num_keypoints+1].reshape(8,2)
                     for edge in edges_corners:
                         plt.plot(corners_gt[edge, 0]*1696, corners_gt[edge, 1]*608, color='g', linewidth=1)
 

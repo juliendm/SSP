@@ -190,6 +190,7 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
     num_labels = 2*num_keypoints+3
 
     label = np.zeros((max_boxes,num_labels))
+    # label = np.zeros((max_boxes,5))
 
     if os.path.getsize(labpath):
         bs = np.loadtxt(labpath)
@@ -231,14 +232,15 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
             if sx == 1.0 and sy == 1.0 and dx == 0.0 and dy == 0.0:
                 bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
             else:
-                raise NotImplementedError
+                bs[i][2*num_keypoints+1] = bs[i][2*num_keypoints+1] * sx
+                bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0) * sy
 
             if flip:
                 raise NotImplementedError
 
-            if bs[i][19] < 0.002 or bs[i][20] < 0.002 or \
-                (crop and (bs[i][19]/bs[i][20] > 20 or bs[i][20]/bs[i][19] > 20)):
-                raise NotImplementedError
+            if bs[i][2*num_keypoints+1] < 0.002 or bs[i][2*num_keypoints+2] < 0.002 or \
+                (crop and (bs[i][2*num_keypoints+1]/bs[i][2*num_keypoints+2] > 20 or bs[i][2*num_keypoints+2]/bs[i][2*num_keypoints+1] > 20)):
+                continue
 
 
             # # 2D
@@ -272,7 +274,8 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
 
             bs[i][0] = car_id2class[bs[i][0]]
 
-            label[cc] = bs[i] #np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
+            label[cc] = bs[i]
+            # label[cc] = np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
 
             cc += 1
             if cc >= 50:

@@ -340,12 +340,20 @@ def read_truths_args(lab_path, min_box_scale):
     truths = read_truths(lab_path)
     new_truths = []
     for i in range(truths.shape[0]):
+        
         new_truths.append(car_id2class[truths[i][0]])
         for j in range(num_keypoints):
             new_truths.append(truths[i][2*j+1])
             new_truths.append((truths[i][2*j+2]*2710.0-1497.0)/(2710.0-1497.0))
         new_truths.append(truths[i][2*num_keypoints+1])
         new_truths.append(truths[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0))
+
+
+        # truths[i][2] = (truths[i][2]*2710.0-1497.0)/(2710.0-1497.0)
+        # truths[i][20] = truths[i][20]*2710.0/(2710.0-1497.0)
+        # truths[i][0] = car_id2class[truths[i][0]]
+        # new_truths.append([truths[i][0], truths[i][1], truths[i][2], truths[i][19], truths[i][20]])
+
 
     return np.array(new_truths)
 

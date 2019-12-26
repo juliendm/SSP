@@ -26,7 +26,7 @@ device = None
 # Train parameters
 use_cuda      = None
 eps           = 1e-5
-keep_backup   = 5
+keep_backup   = 5000
 save_interval = 5  # epoches
 test_interval = 10  # epoches
 dot_interval  = 70  # batches

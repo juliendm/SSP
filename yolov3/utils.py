@@ -169,6 +169,9 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
     # HAS TO BE IMPROVED
     xs, ys = output[0].sigmoid() + grid_x, output[1].sigmoid() + grid_y
 
+    corners = output[2:2*num_keypoints].view((num_keypoints-1),2,-1)
+    xcs, ycs = corners[:,0] + grid_x, corners[:,1] + grid_y
+
     ws, hs = output[2*num_keypoints].exp() * anchor_w.detach(), output[2*num_keypoints+1].exp() * anchor_h.detach()
     det_confs = output[num_labels-1].sigmoid()
 
@@ -185,6 +188,7 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
     cls_max_confs = convert2cpu(cls_max_confs)
     cls_max_ids = convert2cpu_long(cls_max_ids)
     xs, ys = convert2cpu(xs), convert2cpu(ys)
+    xcs, ycs = convert2cpu(xcs), convert2cpu(ycs)
     ws, hs = convert2cpu(ws), convert2cpu(hs)
     if validation:
         cls_confs = convert2cpu(cls_confs.view(-1, num_classes))
@@ -207,6 +211,9 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
                         cls_max_conf = cls_max_confs[ind]
                         cls_max_id = cls_max_ids[ind]
                         box = [bcx/w, bcy/h, bw/nw, bh/nh, det_conf, cls_max_conf, cls_max_id]
+                        for cor in range(8):
+                            box.append(xcs[cor][ind]/w)
+                            box.append(ycs[cor][ind]/h)
                         if (not only_objectness) and validation:
                             for c in range(num_classes):
                                 tmp_conf = cls_confs[ind][c]
@@ -271,6 +278,12 @@ def drawrect(drawcontext, xy, outline=None, width=0):
     points = (x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)
     drawcontext.line(points, fill=outline, width=width)
 
+def drawbox(drawcontext, xs, ys, outline=None, width=0):
+    edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]                    
+    for edge in edges_corners:
+        points = (xs[edge[0]], ys[edge[0]]), (xs[edge[1]], ys[edge[1]])
+        drawcontext.line(points, fill=outline, width=width)
+
 def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     if font is None:
         font = ImageFont.load_default().font
@@ -287,6 +300,8 @@ def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     img.paste(box_img, (sx, sy))
 
 def plot_boxes(img, boxes, savename=None, class_names=None):
+    num_keypoints = 9
+    num_labels = 2*num_keypoints+3
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]])
     def get_color(c, x, max_val):
         ratio = float(x)/max_val * 5
@@ -322,7 +337,9 @@ def plot_boxes(img, boxes, savename=None, class_names=None):
             rgb = (red, green, blue)
             text = "{} : {:.3f}".format(class_names[cls_id],cls_conf)
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
-        drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        #drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        corners = np.array(box[7:7+2*(num_keypoints-1)]).reshape(8,2)
+        drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
     if savename:
         print("save plot results to %s" % savename)
         img.save(savename)

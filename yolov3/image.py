@@ -329,9 +329,18 @@ def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
 
 def load_data_detection(imgpath, shape, crop, jitter, hue, saturation, exposure):
     labpath = imgpath.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
+    maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
 
     ## data augmentation
     img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
+
+    try: #  it avoids the unnecessary call to os.path.exists()
+        mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
+        white_img = Image.new('RGB', img.size, (255, 255, 255))
+        img = Image.composite(white_img, img, mask)
+    except OSError:
+        pass
+
     if crop:         # marvis version
         img,flip,dx,dy,sx,sy = data_augmentation_crop(img, shape, jitter, hue, saturation, exposure)
     else:            # original version

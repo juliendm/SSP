@@ -268,9 +268,15 @@ def train(epoch):
                     corners_gt = truths[k, 3:2*num_keypoints+1].reshape(8,2)
                     for edge in edges_corners:
                         plt.plot(corners_gt[edge, 0]*1696, corners_gt[edge, 1]*608, color='g', linewidth=1)
+                    x1 = (truths[k, 1]-truths[k, -2]/2.0)*1696
+                    y1 = (truths[k, 2]-truths[k, -1]/2.0)*608
+                    x2 = (truths[k, 1]+truths[k, -2]/2.0)*1696
+                    y2 = (truths[k, 2]+truths[k, -1]/2.0)*608
+                    plt.plot([x1,x2,x2,x1,x1], [y1,y1,y2,y2,y1], color='b', linewidth=1)
 
                 plt.gca().invert_yaxis()
                 # plt.show()
+                print('Saving %d_%d.jpg' % (batch_idx,i))
                 plt.savefig('%d_%d.jpg' % (batch_idx,i))
 
         t2 = time.time()

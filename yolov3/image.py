@@ -18,16 +18,18 @@ def image_scale_and_shift(img, new_w, new_h, net_w, net_h, dx, dy):
     scaled = img.resize((new_w, new_h))
     # find to be cropped area
     sx, sy = -dx if dx < 0 else 0, -dy if dy < 0 else 0
-    ex, ey = new_w if sx+new_w<=net_w else net_w-sx, new_h if sy+new_h<=net_h else net_h-sy
+    #ex, ey = new_w if sx+new_w<=net_w else net_w-sx, new_h if sy+new_h<=net_h else net_h-sy
+    ex, ey = sx+net_w, sy+net_h
     scaled = scaled.crop((sx, sy, ex, ey))
+    return scaled
 
-    # find the paste position
-    sx, sy = dx if dx > 0 else 0, dy if dy > 0 else 0
-    assert sx+scaled.width<=net_w and sy+scaled.height<=net_h
-    new_img = Image.new("RGB", (net_w, net_h), (127, 127, 127))
-    new_img.paste(scaled, (sx, sy))
-    del scaled
-    return new_img
+    # # find the paste position
+    # sx, sy = dx if dx > 0 else 0, dy if dy > 0 else 0
+    # assert sx+scaled.width<=net_w and sy+scaled.height<=net_h
+    # new_img = Image.new("RGB", (net_w, net_h), (127, 127, 127))
+    # new_img.paste(scaled, (sx, sy))
+    # del scaled
+    # return new_img
 
 def image_scale_and_shift_nosafe(img, new_w, new_h, net_w, net_h, dx, dy):
     scaled = img.resize((new_w, new_h))
@@ -109,7 +111,7 @@ def data_augmentation_crop(img, shape, jitter, hue, saturation, exposure):
     sx = ow / float(swidth)
     sy = oh / float(sheight)
     
-    flip = 0 #np.random.randint(2)
+    flip = np.random.randint(2)
 
     cropbb = np.array([pleft, ptop, pleft + swidth - 1, ptop + sheight - 1])
     # following two lines are old method. out of image boundary is filled with black (0,0,0)
@@ -145,25 +147,32 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
     net_w, net_h = shape
     img_w, img_h = img.width, img.height
         
-    # determine the amount of scaling and cropping
-    dw = jitter * img_w
-    dh = jitter * img_h
+    # # determine the amount of scaling and cropping
+    # dw = jitter * img_w
+    # dh = jitter * img_h
 
-    new_ar = (img_w + np.random.uniform(-dw, dw)) / (img_h + np.random.uniform(-dh, dh))
+    # new_ar = (img_w + np.random.uniform(-dw, dw)) / (img_h + np.random.uniform(-dh, dh))
+    new_ar = img_w / img_h
+    
     # scale = np.random.uniform(0.25, 2)
-    scale = 1.
+    # scale = 1.
+    scale = np.random.uniform(1., 1.3)
 
     if (new_ar < 1):
         new_h = int(scale * net_h)
-        new_w = int(net_h * new_ar)
+        new_w = int(new_h * new_ar)
     else:
         new_w = int(scale * net_w)
-        new_h = int(net_w / new_ar)
-            
-    dx = int(np.random.uniform(0, net_w - new_w))
-    dy = int(np.random.uniform(0, net_h - new_h))
+        new_h = int(new_w / new_ar)
+
+    # Garantees always centered
+    dx = 0.5*(net_w - new_w) # int(np.random.uniform(0, net_w - new_w))
+    # Garantees horizon cut always same and don't cut cars. Can be increased to small 
+    # number which garantees horizon never cut, (1.3-1.0)*0.25 bigger than margin
+    # But scaling properties learned even with dy = 0.0
+    dy = 0.0 # int(np.random.uniform(0.0, 0.25*(net_h - new_h)))
     sx, sy = new_w / net_w, new_h / net_h
-        
+    
     # apply scaling and shifting
     new_img = image_scale_and_shift(img, new_w, new_h, net_w, net_h, dx, dy)
         
@@ -171,7 +180,7 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
     new_img = random_distort_image(new_img, hue, sat, exp)
     
     # randomly flip
-    flip = 0 #np.random.randint(2)
+    flip = np.random.randint(2)
     if flip: 
         new_img = new_img.transpose(Image.FLIP_LEFT_RIGHT)
             
@@ -220,23 +229,13 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
                 bs[i][2*j+1] = xs[j]
                 bs[i][2*j+2] = ys[j]
 
-            # # Discutable
-            # min_x = min(xs);
-            # max_x = max(xs);
-            # min_y = min(ys);
-            # max_y = max(ys);
-            # bs[i][2*num_keypoints+1] = max_x - min_x;
-            # bs[i][2*num_keypoints+2] = max_y - min_y;
+            bs[i][2*num_keypoints+1] = bs[i][2*num_keypoints+1] * sx
+            bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0) * sy
 
-            # Following is taken care of by above
-            if sx == 1.0 and sy == 1.0 and dx == 0.0 and dy == 0.0:
-                bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0)
-            else:
-                bs[i][2*num_keypoints+1] = bs[i][2*num_keypoints+1] * sx
-                bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0) * sy
 
             if flip:
-                raise NotImplementedError
+                for j in range(num_keypoints):
+                    bs[i][2*j+1] =  0.999 - bs[i][2*j+1] 
 
             if bs[i][2*num_keypoints+1] < 0.002 or bs[i][2*num_keypoints+2] < 0.002 or \
                 (crop and (bs[i][2*num_keypoints+1]/bs[i][2*num_keypoints+2] > 20 or bs[i][2*num_keypoints+2]/bs[i][2*num_keypoints+1] > 20)):
@@ -300,6 +299,9 @@ def letterbox_image(img, net_w, net_h):
     return lbImage
 
 def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
+
+    num_keypoints = 9
+
     im_w, im_h = float(im_w), float(im_h)
     net_w, net_h = float(net_w), float(net_h)
     if net_w/im_w < net_h/im_h:
@@ -312,11 +314,17 @@ def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
     xo, xs = (net_w - new_w)/(2*net_w), net_w/new_w
     yo, ys = (net_h - new_h)/(2*net_h), net_h/new_h
     for i in range(len(boxes)):
+
         b = boxes[i] 
         b[0] = (b[0] - xo) * xs
         b[1] = (b[1] - yo) * ys
         b[2] *= xs
         b[3] *= ys
+        
+        for c in range(num_keypoints-1):
+            b[7+2*c]   = (b[7+2*c]   - xo) * xs
+            b[7+2*c+1] = (b[7+2*c+1] - yo) * ys
+
     return
 
 def load_data_detection(imgpath, shape, crop, jitter, hue, saturation, exposure):

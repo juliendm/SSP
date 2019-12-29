@@ -173,12 +173,14 @@ class YoloLayer(nn.Module):
         tcls = tcls.view(cls_anchor_dim, nC)[obj_mask,:].to(self.device)
 
         t3 = time.time()
-        loss_coord = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
-                     nn.MSELoss(reduction='sum')(coord[2:2*num_keypoints+2], tcoord[2:2*num_keypoints+2])/nB
-        loss_conf  = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
-        loss_cls   = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
+        loss_coord  = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
+                      nn.MSELoss(reduction='sum')(coord[2*num_keypoints:2*num_keypoints+2], tcoord[2*num_keypoints:2*num_keypoints+2])/nB
+        loss_corner = nn.MSELoss(reduction='sum')(coord[2:2*num_keypoints], tcoord[2:2*num_keypoints])/nB
+        loss_conf   = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
+        loss_cls    = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 
-        loss = loss_coord + loss_conf + loss_cls
+        loss_box = loss_coord + 0.1*loss_corner
+        loss = loss_box + loss_conf + loss_cls
 
         t4 = time.time()
         if False:
@@ -191,7 +193,7 @@ class YoloLayer(nn.Module):
             
         if (self.seen-self.seen//100*100) < nB:
             print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: box %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
-                % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_coord, loss_conf, loss_cls, loss))
+                % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_box, loss_conf, loss_cls, loss))
         if math.isnan(loss.item()):
             print(coord, conf, tconf)
             sys.exit(0)

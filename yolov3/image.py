@@ -224,6 +224,23 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
             for j in range(1,num_keypoints):
                 xs[j] = xs[j] * sx - dx 
                 ys[j] = ys[j] * sy - dy 
+
+            if flip:
+                for j in range(num_keypoints):
+                    xs[j] =  0.999 - xs[j]
+
+                xs[1+0],xs[1+4] = xs[1+4],xs[1+0]
+                ys[1+0],ys[1+4] = ys[1+4],ys[1+0]
+
+                xs[1+1],xs[1+5] = xs[1+5],xs[1+1]
+                ys[1+1],ys[1+5] = ys[1+5],ys[1+1]
+
+                xs[1+2],xs[1+6] = xs[1+6],xs[1+2]
+                ys[1+2],ys[1+6] = ys[1+6],ys[1+2]
+
+                xs[1+3],xs[1+7] = xs[1+7],xs[1+3]
+                ys[1+3],ys[1+7] = ys[1+7],ys[1+3]
+
             
             for j in range(num_keypoints):
                 bs[i][2*j+1] = xs[j]
@@ -231,11 +248,6 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
 
             bs[i][2*num_keypoints+1] = bs[i][2*num_keypoints+1] * sx
             bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0) * sy
-
-
-            if flip:
-                for j in range(num_keypoints):
-                    bs[i][2*j+1] =  0.999 - bs[i][2*j+1] 
 
             if bs[i][2*num_keypoints+1] < 0.002 or bs[i][2*num_keypoints+2] < 0.002 or \
                 (crop and (bs[i][2*num_keypoints+1]/bs[i][2*num_keypoints+2] > 20 or bs[i][2*num_keypoints+2]/bs[i][2*num_keypoints+1] > 20)):

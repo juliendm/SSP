@@ -37,7 +37,7 @@ class YoloLayer(nn.Module):
 
     def build_targets(self, pred_boxes, target, anchors, nA, nH, nW):
 
-        num_keypoints = 9
+        num_keypoints = 10
         num_labels = 2*num_keypoints+3
 
         nB = target.size(0)
@@ -113,7 +113,7 @@ class YoloLayer(nn.Module):
 
     def forward(self, output, target):
 
-        num_keypoints = 9
+        num_keypoints = 10
         num_labels = 2*num_keypoints+3
 
         #output : BxAs*(4+1+num_classes)*H*W
@@ -179,7 +179,7 @@ class YoloLayer(nn.Module):
         loss_conf   = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls    = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 
-        loss_box = loss_coord + 0.1*loss_corner
+        loss_box = loss_coord + 0.01*loss_corner
         loss = loss_box + loss_conf + loss_cls
 
         t4 = time.time()

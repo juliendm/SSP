@@ -70,7 +70,7 @@ class listDataset(Dataset):
     
             labpath = imgpath.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
             
-            num_keypoints = 9
+            num_keypoints = 10
             num_labels = 2*num_keypoints+3
 
             label = torch.zeros(50*num_labels)

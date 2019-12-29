@@ -156,7 +156,9 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
     
     # scale = np.random.uniform(0.25, 2)
     # scale = 1.
-    scale = np.random.uniform(1., 1.3)
+
+    # scale = np.random.uniform(1., 1.3)
+    scale = 1.
 
     if (new_ar < 1):
         new_h = int(scale * net_h)
@@ -195,7 +197,7 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
 
 def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
     max_boxes = 50
-    num_keypoints = 9
+    num_keypoints = 10
     num_labels = 2*num_keypoints+3
 
     label = np.zeros((max_boxes,num_labels))
@@ -312,7 +314,7 @@ def letterbox_image(img, net_w, net_h):
 
 def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
 
-    num_keypoints = 9
+    num_keypoints = 10
 
     im_w, im_h = float(im_w), float(im_h)
     net_w, net_h = float(net_w), float(net_h)

@@ -138,7 +138,7 @@ def get_all_boxes(output, netshape, conf_thresh, num_classes, only_objectness=1,
 
 def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_anchors, only_objectness=1, validation=False, use_cuda=True):
 
-    num_keypoints = 9
+    num_keypoints = 10
     num_labels = 2*num_keypoints+3
 
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -300,7 +300,7 @@ def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     img.paste(box_img, (sx, sy))
 
 def plot_boxes(img, boxes, savename=None, class_names=None):
-    num_keypoints = 9
+    num_keypoints = 10
     num_labels = 2*num_keypoints+3
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]])
     def get_color(c, x, max_val):
@@ -337,8 +337,8 @@ def plot_boxes(img, boxes, savename=None, class_names=None):
             rgb = (red, green, blue)
             text = "{} : {:.3f}".format(class_names[cls_id],cls_conf)
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
-        #drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
-        corners = np.array(box[7:7+2*(num_keypoints-1)]).reshape(8,2)
+        drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
         drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
     if savename:
         print("save plot results to %s" % savename)
@@ -350,7 +350,7 @@ def read_truths(lab_path):
         return np.array([])
     if os.path.getsize(lab_path):
         truths = np.loadtxt(lab_path)
-        num_keypoints = 9
+        num_keypoints = 10
         num_labels = 2*num_keypoints+3
         truths = truths.reshape(-1, num_labels) # to avoid single truth problem
         return truths
@@ -358,7 +358,7 @@ def read_truths(lab_path):
         return np.array([])
 
 def read_truths_args(lab_path, min_box_scale):
-    num_keypoints = 9
+    num_keypoints = 10
     num_labels = 2*num_keypoints+3
     truths = read_truths(lab_path)
     new_truths = []

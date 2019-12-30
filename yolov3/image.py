@@ -231,17 +231,17 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
                 for j in range(num_keypoints):
                     xs[j] =  0.999 - xs[j]
 
-                xs[1+0],xs[1+4] = xs[1+4],xs[1+0]
-                ys[1+0],ys[1+4] = ys[1+4],ys[1+0]
+                xs[2+0],xs[2+4] = xs[2+4],xs[2+0]
+                ys[2+0],ys[2+4] = ys[2+4],ys[2+0]
 
-                xs[1+1],xs[1+5] = xs[1+5],xs[1+1]
-                ys[1+1],ys[1+5] = ys[1+5],ys[1+1]
+                xs[2+1],xs[2+5] = xs[2+5],xs[2+1]
+                ys[2+1],ys[2+5] = ys[2+5],ys[2+1]
 
-                xs[1+2],xs[1+6] = xs[1+6],xs[1+2]
-                ys[1+2],ys[1+6] = ys[1+6],ys[1+2]
+                xs[2+2],xs[2+6] = xs[2+6],xs[2+2]
+                ys[2+2],ys[2+6] = ys[2+6],ys[2+2]
 
-                xs[1+3],xs[1+7] = xs[1+7],xs[1+3]
-                ys[1+3],ys[1+7] = ys[1+7],ys[1+3]
+                xs[2+3],xs[2+7] = xs[2+7],xs[2+3]
+                ys[2+3],ys[2+7] = ys[2+7],ys[2+3]
 
             
             for j in range(num_keypoints):

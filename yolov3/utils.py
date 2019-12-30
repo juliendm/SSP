@@ -211,7 +211,7 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
                         cls_max_conf = cls_max_confs[ind]
                         cls_max_id = cls_max_ids[ind]
                         box = [bcx/w, bcy/h, bw/nw, bh/nh, det_conf, cls_max_conf, cls_max_id]
-                        for cor in range(8):
+                        for cor in range(num_keypoints-1):
                             box.append(xcs[cor][ind]/w)
                             box.append(ycs[cor][ind]/h)
                         if (not only_objectness) and validation:

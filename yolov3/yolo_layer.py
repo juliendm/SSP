@@ -179,7 +179,7 @@ class YoloLayer(nn.Module):
         loss_conf   = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls    = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 
-        loss_box = loss_coord + 0.01*loss_corner
+        loss_box = loss_coord + 0.1*loss_corner
         loss = loss_box + loss_conf + loss_cls
 
         t4 = time.time()

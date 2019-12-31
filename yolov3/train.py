@@ -151,6 +151,8 @@ def main():
     optimizer = optim.SGD(model.parameters(), 
                         lr=learning_rate/batch_size, momentum=momentum, 
                         dampening=0, weight_decay=decay*batch_size)
+    
+    # optimizer = optim.Adam(model.parameters(),lr=learning_rate/batch_size)
 
     if evaluate:
         logging('evaluating ...')

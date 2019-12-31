@@ -7,6 +7,7 @@ from image import letterbox_image, correct_yolo_boxes
 from darknet import Darknet
 
 import cv2, json
+from scipy.spatial.transform import Rotation
 
 namesfile=None
 def detect(cfgfile, weightfile, imgfile):
@@ -68,6 +69,12 @@ def detect(cfgfile, weightfile, imgfile):
         proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
         vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
         
+        angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+        # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
+        mask = np.ones((2710-1497,3384),dtype=int))
+        iou = iou_mask(t_pr[0],t_pr[1],t_pr[2],angles[0],angles[1],angles[2],vertices,triangles,mask)
+        print(iou)
+
         proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
         proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
 
@@ -84,51 +91,6 @@ def detect(cfgfile, weightfile, imgfile):
     class_names = load_class_names(namesfile)
     plot_boxes(img, boxes, 'predictions.jpg', class_names, vertices_2D, triangles_2D)
 
-
-
-def pnp(points_3D, points_2D, cameraMatrix):
-    try:
-        distCoeffs = pnp.distCoeffs
-    except:
-        distCoeffs = np.zeros((8, 1), dtype='float32') # 8 distortion-coefficient model
-
-    assert points_3D.shape[0] == points_2D.shape[0], 'points 3D and points 2D must have same number of vertices'
-
-    _, R_exp, t = cv2.solvePnP(points_3D,
-                              np.ascontiguousarray(points_2D[:,:2]).reshape((-1,1,2)),
-                              cameraMatrix,
-                              distCoeffs)
-
-    R, _ = cv2.Rodrigues(R_exp)
-    return R, t
-
-def compute_projection(points_3D, transformation, internal_calibration):
-    projections_2d = np.zeros((2, points_3D.shape[1]), dtype='float32')
-    camera_projection = (internal_calibration.dot(transformation)).dot(points_3D)
-    projections_2d[0, :] = camera_projection[0, :]/camera_projection[2, :]
-    projections_2d[1, :] = camera_projection[1, :]/camera_projection[2, :]
-    return projections_2d
-
-def get_3D_corners(vertices):
-    
-    min_x = np.min(vertices[0,:])
-    max_x = np.max(vertices[0,:])
-    min_y = np.min(vertices[1,:])
-    max_y = np.max(vertices[1,:])
-    min_z = np.min(vertices[2,:])
-    max_z = np.max(vertices[2,:])
-
-    corners = np.array([[min_x, min_y, min_z],
-                        [min_x, min_y, max_z],
-                        [min_x, max_y, min_z],
-                        [min_x, max_y, max_z],
-                        [max_x, min_y, min_z],
-                        [max_x, min_y, max_z],
-                        [max_x, max_y, min_z],
-                        [max_x, max_y, max_z]])
-
-    corners = np.concatenate((np.transpose(corners), np.ones((1,8)) ), axis=0)
-    return corners
 
 
 

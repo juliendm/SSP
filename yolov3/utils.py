@@ -9,6 +9,10 @@ import itertools
 import struct # get_image_size
 import imghdr # get_image_size
 
+from scipy.spatial import ConvexHull
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 car_name2id = {'019-SUV': 46, '036-CAR01': 47, '037-CAR02': 16, 'MG-GT-2015': 30, 'Skoda_Fabia-2011': 67, 'aodi-Q7-SUV': 48, 'aodi-a6': 17, 'baojun-310-2017': 0, 'baojun-510': 49, 'baoma-330': 18, 'baoma-530': 19, 'baoma-X5': 50, 'baoshijie-kayan': 51, 'baoshijie-paoche': 20, 'beiqi-huansu-H3': 52, 'benchi-GLK-300': 53, 'benchi-ML500': 54, 'benchi-SUR': 71, 'bentian-fengfan': 21, 'biaozhi-3008': 1, 'biaozhi-408': 22, 'biaozhi-508': 23, 'biaozhi-liangxiang': 2, 'bieke': 37, 'bieke-kaiyue': 24, 'bieke-yinglang-XT': 3, 'biyadi-2x-F0': 4, 'biyadi-F3': 38, 'biyadi-qin': 39, 'biyadi-tang': 72, 'changan-CS35-2012': 73, 'changan-cs5': 74, 'changanbenben': 5, 'changcheng-H6-2016': 75, 'dazhong': 40, 'dazhong-SUV': 76, 'dazhongmaiteng': 41, 'dihao-EV': 42, 'dongfeng-DS5': 6, 'dongfeng-fengguang-S560': 77, 'dongfeng-fengxing-SX6': 78, 'dongfeng-xuetielong-C6': 43, 'dongfeng-yulong-naruijie': 45, 'dongnan-V3-lingyue-2011': 44, 'feiyate': 7, 'fengtian-MPV': 9, 'fengtian-SUV-gai': 56, 'fengtian-liangxiang': 8, 'fengtian-puladuo-06': 55, 'fengtian-weichi-2006': 15, 'fute': 25, 'guangqi-chuanqi-GS4-2015': 57, 'haima-3': 26, 'jianghuai-ruifeng-S3': 58, 'jili-boyue': 59, 'jilixiongmao-2015': 10, 'jipu-3': 60, 'kaidilake-CTS': 27, 'leikesasi': 28, 'lingmu-SX4-2012': 13, 'lingmu-aotuo-2009': 11, 'lingmu-swift': 12, 'linken-SUV': 61, 'lufeng-X8': 62, 'mazida-6-2015': 29, 'oubao': 31, 'qirui-ruihu': 63, 'qiya': 32, 'rongwei-750': 33, 'rongwei-RX5': 64, 'sanling-oulande': 65, 'sikeda-SUV': 66, 'sikeda-jingrui': 14, 'supai-2016': 34, 'xiandai-i25-2016': 68, 'xiandai-suonata': 35, 'yingfeinidi-SUV': 70, 'yingfeinidi-qx80': 69, 'yiqi-benteng-b50': 36}
 car_id2name = {v: k for k, v in car_name2id.items()}
 car_id2class = {2:0, 6:1, 7:2, 8:3, 9:4, 12:5, 14:6, 16:7, 18:8, 19:9, 20:10, 23:11, 25:12, 27:13, 28:14, 31:15, 32:16, 35:17, 37:18, 40:19, 43:20, 46:21, 47:22, 48:23, 50:24, 51:25, 54:26, 56:27, 60:28, 61:29, 66:30, 70:31, 71:32, 76:33}
@@ -292,6 +296,117 @@ def drawmesh(drawcontext, vertices, triangles, im_width, im_height, outline=None
                  (vertices[tri[0],0]*im_width, vertices[tri[0],1]*im_height)
         drawcontext.line(points, fill=outline, width=width)
 
+def drawhull(drawcontext, vertices, im_width, im_height, outline=None, width=0):
+
+    hull = ConvexHull(vertices)
+    ver = hull.vertices
+
+    for i in range(len(ver)-1):
+        points = (vertices[ver[i],0]*im_width, vertices[ver[i],1]*im_height), \
+                 (vertices[ver[i+1],0]*im_width, vertices[ver[i+1],1]*im_height)
+        drawcontext.line(points, fill=outline, width=width)
+
+def iou_mask(x,y,z,angle_x,angle_y,angle_z,vertices,triangles,mask):
+
+    K = np.array([[2304.5479, 0,  1686.2379],
+                  [0, 2305.8757, 1354.9849],
+                  [0, 0, 1]], dtype=np.float32)
+
+    R_pr = Rotation.from_euler('xyz', [angle_x,angle_y,angle_z]).as_dcm().T
+    Rt_pr = np.concatenate((R_pr, np.array([x,y,z]).reshape(-1,1)), axis=1)
+
+    vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+    vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
+    vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+
+    mask_pr = np.zeros(mask.shape,dtype=int)
+    drawmask(mask_pr, vertices_proj_2d, triangles, mask.shape[1], mask.shape[0])
+
+    iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
+
+    return iou
+
+def pnp(points_3D, points_2D, cameraMatrix):
+    try:
+        distCoeffs = pnp.distCoeffs
+    except:
+        distCoeffs = np.zeros((8, 1), dtype='float32') # 8 distortion-coefficient model
+
+    assert points_3D.shape[0] == points_2D.shape[0], 'points 3D and points 2D must have same number of vertices'
+
+    _, R_exp, t = cv2.solvePnP(points_3D,
+                              np.ascontiguousarray(points_2D[:,:2]).reshape((-1,1,2)),
+                              cameraMatrix,
+                              distCoeffs)
+
+    R, _ = cv2.Rodrigues(R_exp)
+    return R, t
+
+def compute_projection(points_3D, transformation, internal_calibration):
+    projections_2d = np.zeros((2, points_3D.shape[1]), dtype='float32')
+    camera_projection = (internal_calibration.dot(transformation)).dot(points_3D)
+    projections_2d[0, :] = camera_projection[0, :]/camera_projection[2, :]
+    projections_2d[1, :] = camera_projection[1, :]/camera_projection[2, :]
+    return projections_2d
+
+def get_3D_corners(vertices):
+    
+    min_x = np.min(vertices[0,:])
+    max_x = np.max(vertices[0,:])
+    min_y = np.min(vertices[1,:])
+    max_y = np.max(vertices[1,:])
+    min_z = np.min(vertices[2,:])
+    max_z = np.max(vertices[2,:])
+
+    corners = np.array([[min_x, min_y, min_z],
+                        [min_x, min_y, max_z],
+                        [min_x, max_y, min_z],
+                        [min_x, max_y, max_z],
+                        [max_x, min_y, min_z],
+                        [max_x, min_y, max_z],
+                        [max_x, max_y, min_z],
+                        [max_x, max_y, max_z]])
+
+    corners = np.concatenate((np.transpose(corners), np.ones((1,8)) ), axis=0)
+    return corners
+
+def drawmask(mask, vertices, triangles, im_width, im_height):
+    for tri in triangles:
+        x0 = int(vertices[tri[0],0]*im_width)
+        y0 = int(vertices[tri[0],1]*im_height)
+        x1 = int(vertices[tri[1],0]*im_width)
+        y1 = int(vertices[tri[1],1]*im_height)
+        x2 = int(vertices[tri[2],0]*im_width)
+        y2 = int(vertices[tri[2],1]*im_height)
+
+        xs=np.array((x0,x1,x2),dtype=float)
+        ys=np.array((y0,y1,y2),dtype=float)
+        ind_x,ind_y = insidetriangle(ys,xs)
+        mask[ind_x,ind_y] = 1
+
+def insidetriangle(xs,ys):
+
+    x_range=np.arange(np.min(xs),np.max(xs)+1)
+    y_range=np.arange(np.min(ys),np.max(ys)+1)
+
+    X,Y=np.meshgrid(x_range,y_range)
+    xc=np.mean(xs)
+    yc=np.mean(ys)
+
+    mask = np.ones(X.shape,dtype=bool)
+
+    for i in range(3):
+        ii=(i+1)%3
+        if xs[i]==xs[ii]:
+            include = X *(xc-xs[i])/abs(xc-xs[i]) >= xs[i] *(xc-xs[i])/abs(xc-xs[i])
+        else:
+            poly=np.poly1d([(ys[ii]-ys[i])/(xs[ii]-xs[i]),ys[i]-xs[i]*(ys[ii]-ys[i])/(xs[ii]-xs[i])])
+            include = Y *(yc-poly(xc))/abs(yc-poly(xc)) >= poly(X) *(yc-poly(xc))/abs(yc-poly(xc))
+        mask *= include
+
+    return X[mask].astype(int), Y[mask].astype(int)
+
+
 def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     if font is None:
         font = ImageFont.load_default().font
@@ -327,6 +442,8 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
     except:
         font=None
     print("%d box(es) is(are) found" % len(boxes))
+
+    mask = np.zeros((height,width),dtype=int)
     for i in range(len(boxes)):
         box = boxes[i]
         x1,y1,x2,y2 = (box[0] - box[2]/2.0) * width, (box[1] - box[3]/2.0) * height, \
@@ -349,10 +466,15 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
         corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
         drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
         if vertices_2D is not None and triangles_2D is not None:
-            drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
+            # drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
+            # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)
+            drawmask(mask, vertices_2D[i],  triangles_2D[i], width, height)
     if savename:
         print("save plot results to %s" % savename)
         img.save(savename)
+        # img = Image.fromarray(mask,'L')
+        # img.save('mask.jpg')
+        plt.imsave('mask.png', mask, cmap=cm.gray)
     return img
 
 def read_truths(lab_path):

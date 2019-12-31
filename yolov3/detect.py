@@ -9,6 +9,8 @@ from darknet import Darknet
 import cv2, json
 from scipy.spatial.transform import Rotation
 
+from scipy.optimize import fmin_bfgs
+
 namesfile=None
 def detect(cfgfile, weightfile, imgfile):
     m = Darknet(cfgfile)
@@ -68,12 +70,18 @@ def detect(cfgfile, weightfile, imgfile):
         Rt_pr           = np.concatenate((R_pr, t_pr), axis=1)
         proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
         vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
-        
-        angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-        # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
-        mask = np.ones((2710-1497,3384),dtype=int))
-        iou = iou_mask(t_pr[0],t_pr[1],t_pr[2],angles[0],angles[1],angles[2],vertices,triangles,mask)
-        print(iou)
+    
+        # if i == 0:
+        #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+        #     # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
+        #     mask = np.ones((2710-1497,3384),dtype=int)
+        #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+
+        #     iou = -neg_iou_mask(x0,vertices,triangles,mask)
+        #     res = fmin_bfgs(neg_iou_mask, x0, args=(vertices,triangles,mask),epsilon=1e-03,disp=1)
+            
+        #     print(res.x)
+
 
         proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
         proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 

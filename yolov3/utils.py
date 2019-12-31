@@ -13,6 +13,9 @@ from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
+import cv2, json
+from scipy.spatial.transform import Rotation
+
 car_name2id = {'019-SUV': 46, '036-CAR01': 47, '037-CAR02': 16, 'MG-GT-2015': 30, 'Skoda_Fabia-2011': 67, 'aodi-Q7-SUV': 48, 'aodi-a6': 17, 'baojun-310-2017': 0, 'baojun-510': 49, 'baoma-330': 18, 'baoma-530': 19, 'baoma-X5': 50, 'baoshijie-kayan': 51, 'baoshijie-paoche': 20, 'beiqi-huansu-H3': 52, 'benchi-GLK-300': 53, 'benchi-ML500': 54, 'benchi-SUR': 71, 'bentian-fengfan': 21, 'biaozhi-3008': 1, 'biaozhi-408': 22, 'biaozhi-508': 23, 'biaozhi-liangxiang': 2, 'bieke': 37, 'bieke-kaiyue': 24, 'bieke-yinglang-XT': 3, 'biyadi-2x-F0': 4, 'biyadi-F3': 38, 'biyadi-qin': 39, 'biyadi-tang': 72, 'changan-CS35-2012': 73, 'changan-cs5': 74, 'changanbenben': 5, 'changcheng-H6-2016': 75, 'dazhong': 40, 'dazhong-SUV': 76, 'dazhongmaiteng': 41, 'dihao-EV': 42, 'dongfeng-DS5': 6, 'dongfeng-fengguang-S560': 77, 'dongfeng-fengxing-SX6': 78, 'dongfeng-xuetielong-C6': 43, 'dongfeng-yulong-naruijie': 45, 'dongnan-V3-lingyue-2011': 44, 'feiyate': 7, 'fengtian-MPV': 9, 'fengtian-SUV-gai': 56, 'fengtian-liangxiang': 8, 'fengtian-puladuo-06': 55, 'fengtian-weichi-2006': 15, 'fute': 25, 'guangqi-chuanqi-GS4-2015': 57, 'haima-3': 26, 'jianghuai-ruifeng-S3': 58, 'jili-boyue': 59, 'jilixiongmao-2015': 10, 'jipu-3': 60, 'kaidilake-CTS': 27, 'leikesasi': 28, 'lingmu-SX4-2012': 13, 'lingmu-aotuo-2009': 11, 'lingmu-swift': 12, 'linken-SUV': 61, 'lufeng-X8': 62, 'mazida-6-2015': 29, 'oubao': 31, 'qirui-ruihu': 63, 'qiya': 32, 'rongwei-750': 33, 'rongwei-RX5': 64, 'sanling-oulande': 65, 'sikeda-SUV': 66, 'sikeda-jingrui': 14, 'supai-2016': 34, 'xiandai-i25-2016': 68, 'xiandai-suonata': 35, 'yingfeinidi-SUV': 70, 'yingfeinidi-qx80': 69, 'yiqi-benteng-b50': 36}
 car_id2name = {v: k for k, v in car_name2id.items()}
 car_id2class = {2:0, 6:1, 7:2, 8:3, 9:4, 12:5, 14:6, 16:7, 18:8, 19:9, 20:10, 23:11, 25:12, 27:13, 28:14, 31:15, 32:16, 35:17, 37:18, 40:19, 43:20, 46:21, 47:22, 48:23, 50:24, 51:25, 54:26, 56:27, 60:28, 61:29, 66:30, 70:31, 71:32, 76:33}
@@ -306,14 +309,16 @@ def drawhull(drawcontext, vertices, im_width, im_height, outline=None, width=0):
                  (vertices[ver[i+1],0]*im_width, vertices[ver[i+1],1]*im_height)
         drawcontext.line(points, fill=outline, width=width)
 
-def iou_mask(x,y,z,angle_x,angle_y,angle_z,vertices,triangles,mask):
+def neg_iou_mask(x,vertices,triangles,mask):
+
+    # delta_x,delta_y,delta_z,angle_x,angle_y,angle_z
 
     K = np.array([[2304.5479, 0,  1686.2379],
                   [0, 2305.8757, 1354.9849],
                   [0, 0, 1]], dtype=np.float32)
 
-    R_pr = Rotation.from_euler('xyz', [angle_x,angle_y,angle_z]).as_dcm().T
-    Rt_pr = np.concatenate((R_pr, np.array([x,y,z]).reshape(-1,1)), axis=1)
+    R_pr = Rotation.from_euler('xyz', [x[3],x[4],x[5]]).as_dcm().T
+    Rt_pr = np.concatenate((R_pr, np.array([x[0],x[1],x[2]]).reshape(-1,1)), axis=1)
 
     vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
     vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
@@ -321,10 +326,11 @@ def iou_mask(x,y,z,angle_x,angle_y,angle_z,vertices,triangles,mask):
 
     mask_pr = np.zeros(mask.shape,dtype=int)
     drawmask(mask_pr, vertices_proj_2d, triangles, mask.shape[1], mask.shape[0])
+    plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
 
     iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
 
-    return iou
+    return -iou
 
 def pnp(points_3D, points_2D, cameraMatrix):
     try:

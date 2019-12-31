@@ -311,6 +311,8 @@ def drawhull(drawcontext, vertices, im_width, im_height, outline=None, width=0):
 
 def neg_iou_mask(x,vertices,triangles,mask):
 
+    print(x)
+
     # delta_x,delta_y,delta_z,angle_x,angle_y,angle_z
 
     K = np.array([[2304.5479, 0,  1686.2379],
@@ -325,8 +327,12 @@ def neg_iou_mask(x,vertices,triangles,mask):
     vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
 
     mask_pr = np.zeros(mask.shape,dtype=int)
-    drawmask(mask_pr, vertices_proj_2d, triangles, mask.shape[1], mask.shape[0])
-    plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
+    
+    # drawmask(mask_pr, vertices_proj_2d, triangles, mask.shape[1], mask.shape[0])
+    # Much Faster (Approximation)
+    drawmaskhull(mask_pr, vertices_proj_2d, triangles, mask.shape[1], mask.shape[0])
+
+    # plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
 
     iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
 
@@ -376,6 +382,17 @@ def get_3D_corners(vertices):
     corners = np.concatenate((np.transpose(corners), np.ones((1,8)) ), axis=0)
     return corners
 
+def drawmaskhull(mask, vertices, triangles, im_width, im_height):
+
+    hull = ConvexHull(vertices)
+    ver = hull.vertices
+
+    xs = vertices[ver,0]*im_width
+    ys = vertices[ver,1]*im_height
+
+    ind_x,ind_y = inside_polygone(ys,xs)
+    mask[ind_x,ind_y] = 1
+
 def drawmask(mask, vertices, triangles, im_width, im_height):
     for tri in triangles:
         x0 = int(vertices[tri[0],0]*im_width)
@@ -387,10 +404,10 @@ def drawmask(mask, vertices, triangles, im_width, im_height):
 
         xs=np.array((x0,x1,x2),dtype=float)
         ys=np.array((y0,y1,y2),dtype=float)
-        ind_x,ind_y = insidetriangle(ys,xs)
+        ind_x,ind_y = inside_polygone(ys,xs)
         mask[ind_x,ind_y] = 1
 
-def insidetriangle(xs,ys):
+def inside_polygone(xs,ys):
 
     x_range=np.arange(np.min(xs),np.max(xs)+1)
     y_range=np.arange(np.min(ys),np.max(ys)+1)
@@ -401,8 +418,8 @@ def insidetriangle(xs,ys):
 
     mask = np.ones(X.shape,dtype=bool)
 
-    for i in range(3):
-        ii=(i+1)%3
+    for i in range(len(xs)):
+        ii=(i+1)%len(xs)
         if xs[i]==xs[ii]:
             include = X *(xc-xs[i])/abs(xc-xs[i]) >= xs[i] *(xc-xs[i])/abs(xc-xs[i])
         else:
@@ -474,7 +491,8 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
         if vertices_2D is not None and triangles_2D is not None:
             # drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
             # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)
-            drawmask(mask, vertices_2D[i],  triangles_2D[i], width, height)
+            # drawmask(mask, vertices_2D[i],  triangles_2D[i], width, height)
+            drawmaskhull(mask, vertices_2D[i],  triangles_2D[i], width, height)
     if savename:
         print("save plot results to %s" % savename)
         img.save(savename)

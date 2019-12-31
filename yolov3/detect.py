@@ -74,13 +74,17 @@ def detect(cfgfile, weightfile, imgfile):
         # if i == 0:
         #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
         #     # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
-        #     mask = np.ones((2710-1497,3384),dtype=int)
-        #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
-
-        #     iou = -neg_iou_mask(x0,vertices,triangles,mask)
-        #     res = fmin_bfgs(neg_iou_mask, x0, args=(vertices,triangles,mask),epsilon=1e-03,disp=1)
             
-        #     print(res.x)
+        #     mask = np.zeros((2710-1497,3384),dtype=int)
+        #     for a in range(300,600):
+        #         for b in range(500,900):
+        #             mask[a,b] = 1
+        #     plt.imsave('mask_ref.png', mask, cmap=cm.gray)
+
+        #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+            
+        #     iou = -neg_iou_mask(x0,vertices,triangles,mask)
+        #     #res = fmin_bfgs(neg_iou_mask, x0, args=(vertices,triangles,mask),epsilon=1e-03,disp=1)
 
 
         proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0

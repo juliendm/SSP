@@ -284,6 +284,14 @@ def drawbox(drawcontext, xs, ys, outline=None, width=0):
         points = (xs[edge[0]], ys[edge[0]]), (xs[edge[1]], ys[edge[1]])
         drawcontext.line(points, fill=outline, width=width)
 
+def drawmesh(drawcontext, vertices, triangles, im_width, im_height, outline=None, width=0):
+    for tri in triangles:
+        points = (vertices[tri[0],0]*im_width, vertices[tri[0],1]*im_height), \
+                 (vertices[tri[1],0]*im_width, vertices[tri[1],1]*im_height), \
+                 (vertices[tri[2],0]*im_width, vertices[tri[2],1]*im_height), \
+                 (vertices[tri[0],0]*im_width, vertices[tri[0],1]*im_height)
+        drawcontext.line(points, fill=outline, width=width)
+
 def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     if font is None:
         font = ImageFont.load_default().font
@@ -299,7 +307,7 @@ def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
         sy=0
     img.paste(box_img, (sx, sy))
 
-def plot_boxes(img, boxes, savename=None, class_names=None):
+def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, triangles_2D=None):
     num_keypoints = 10
     num_labels = 2*num_keypoints+3
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]])
@@ -340,6 +348,8 @@ def plot_boxes(img, boxes, savename=None, class_names=None):
         drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
         corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
         drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
+        if vertices_2D is not None and triangles_2D is not None:
+            drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
     if savename:
         print("save plot results to %s" % savename)
         img.save(savename)

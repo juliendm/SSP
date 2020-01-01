@@ -6,6 +6,7 @@ from utils import *
 from image import letterbox_image, correct_yolo_boxes
 from darknet import Darknet
 
+import pickle
 import cv2, json
 from scipy.spatial.transform import Rotation
 
@@ -51,8 +52,10 @@ def detect(cfgfile, weightfile, imgfile):
 
         with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
             data = json.load(json_file)
+        with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
+            coords = pickle.load(pkl_file)
         vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
-        triangles = np.array(data['faces'])-1
+        # triangles = np.array(data['faces'])-1
         corners3D     = get_3D_corners(vertices)   
         objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
 
@@ -69,39 +72,46 @@ def detect(cfgfile, weightfile, imgfile):
         R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
         Rt_pr           = np.concatenate((R_pr, t_pr), axis=1)
         proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
-        vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
-    
-        # if i == 0:
-        #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-        #     # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
-            
-        #     mask = np.zeros((2710-1497,3384),dtype=int)
-        #     for a in range(300,600):
-        #         for b in range(500,900):
-        #             mask[a,b] = 1
-        #     plt.imsave('mask_ref.png', mask, cmap=cm.gray)
 
-        #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+
+        # vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+
+        vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
+        vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
+        vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
+
+
+        if i == 0:
+            angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+            # R_pr = Rotation.from_euler('xyz', angles).as_dcm().T
             
-        #     iou = -neg_iou_mask(x0,vertices,triangles,mask)
-        #     #res = fmin_bfgs(neg_iou_mask, x0, args=(vertices,triangles,mask),epsilon=1e-03,disp=1)
+            mask = np.zeros((2710-1497,3384),dtype=int)
+            for a in range(300,600):
+                for b in range(500,900):
+                    mask[a,b] = 1
+            plt.imsave('mask_ref.png', mask, cmap=cm.gray)
+
+            x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+            
+            iou = -neg_iou_mask(x0,coords,mask)
+            #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
 
 
         proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
         proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
 
-        vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
-        vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+        vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
+        vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
 
         for j in range(num_keypoints-2):
             boxes[i][9+2*j]   = proj_corners2D[j, 0]
             boxes[i][9+2*j+1] = proj_corners2D[j, 1]
 
-        vertices_2D.append(vertices_proj_2d)
-        triangles_2D.append(triangles)
+        vertices_2D.append(vertices_proj_2d_colored)
+        # triangles_2D.append(triangles)
 
     class_names = load_class_names(namesfile)
-    plot_boxes(img, boxes, 'predictions.jpg', class_names, vertices_2D, triangles_2D)
+    plot_boxes(img, boxes, 'predictions.jpg', class_names, vertices_2D)
 
 
 

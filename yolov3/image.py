@@ -157,8 +157,8 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
     # scale = np.random.uniform(0.25, 2)
     # scale = 1.
 
-    scale = np.random.uniform(1., 1.3)
-    # scale = 1.
+    # scale = np.random.uniform(1., 1.3)
+    scale = 1.
 
     if (new_ar < 1):
         new_h = int(scale * net_h)

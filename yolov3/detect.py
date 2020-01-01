@@ -52,8 +52,11 @@ def detect(cfgfile, weightfile, imgfile):
 
         with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
             data = json.load(json_file)
+        
         with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
             coords = pickle.load(pkl_file)
+        coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
+
         vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
         # triangles = np.array(data['faces'])-1
         corners3D     = get_3D_corners(vertices)   

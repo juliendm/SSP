@@ -322,8 +322,7 @@ def neg_iou_mask(x,coords,mask):
     R_pr = Rotation.from_euler('xyz', [x[3],x[4],x[5]]).as_dcm().T
     Rt_pr = np.concatenate((R_pr, np.array([x[0],x[1],x[2]]).reshape(-1,1)), axis=1)
 
-
-    vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
+    vertices_colored =  np.c_[coords[:,:3], np.ones((len(coords), 1))].transpose()
     vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
     vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
     vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
@@ -335,7 +334,7 @@ def neg_iou_mask(x,coords,mask):
     # Much Faster (Approximation)
     drawmaskhull(mask_pr, vertices_proj_2d_colored, mask.shape[1], mask.shape[0])
 
-    # plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
+    plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
 
     iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
 
@@ -385,16 +384,18 @@ def get_3D_corners(vertices):
     corners = np.concatenate((np.transpose(corners), np.ones((1,8)) ), axis=0)
     return corners
 
-def drawmaskhull(mask, vertices, im_width, im_height):
+def drawmaskhull(mask, coords, im_width, im_height):
+    for index in range(8):
+        vertices = coords[coords[:,2]==index,:2]
+        if len(vertices):
+            hull = ConvexHull(vertices)
+            ver = hull.vertices
 
-    hull = ConvexHull(vertices)
-    ver = hull.vertices
+            xs = vertices[ver,0]*im_width
+            ys = vertices[ver,1]*im_height
 
-    xs = vertices[ver,0]*im_width
-    ys = vertices[ver,1]*im_height
-
-    ind_x,ind_y = inside_polygone(ys,xs)
-    mask[ind_x,ind_y] = 1
+            ind_x,ind_y = inside_polygone(ys,xs)
+            mask[ind_x,ind_y] = 1
 
 def drawmask(mask, vertices, triangles, im_width, im_height):
     for tri in triangles:

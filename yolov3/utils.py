@@ -309,9 +309,9 @@ def drawhull(drawcontext, vertices, im_width, im_height, outline=None, width=0):
                  (vertices[ver[i+1],0]*im_width, vertices[ver[i+1],1]*im_height)
         drawcontext.line(points, fill=outline, width=width)
 
-def neg_iou_mask(x,coords,mask):
+def neg_iou_mask(x,coords,mask,save=False):
 
-    # print(x)
+    print(x)
 
     # delta_x,delta_y,delta_z,angle_x,angle_y,angle_z
 
@@ -319,8 +319,8 @@ def neg_iou_mask(x,coords,mask):
                   [0, 2305.8757, 1354.9849],
                   [0, 0, 1]], dtype=np.float32)
 
-    R_pr = Rotation.from_euler('xyz', [x[3],x[4],x[5]]).as_dcm().T
-    Rt_pr = np.concatenate((R_pr, np.array([x[0],x[1],x[2]]).reshape(-1,1)), axis=1)
+    R_pr = Rotation.from_euler('xyz', x[3:]).as_dcm().T
+    Rt_pr = np.concatenate((R_pr, np.array(x[:3]).reshape(-1,1)), axis=1)
 
     vertices_colored =  np.c_[coords[:,:3], np.ones((len(coords), 1))].transpose()
     vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
@@ -334,9 +334,12 @@ def neg_iou_mask(x,coords,mask):
     # Much Faster (Approximation)
     drawmaskhull(mask_pr, vertices_proj_2d_colored, mask.shape[1], mask.shape[0])
 
-    plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
+    if save:
+        plt.imsave('mask_pr.png', mask_pr, cmap=cm.gray)
 
     iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
+
+    print(iou)
 
     return -iou
 
@@ -449,7 +452,7 @@ def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
         sy=0
     img.paste(box_img, (sx, sy))
 
-def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None):
+def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, triangles_2D=None):
     num_keypoints = 10
     num_labels = 2*num_keypoints+3
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]])
@@ -489,13 +492,14 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None):
             rgb = (red, green, blue)
             text = "{} : {:.3f}".format(class_names[cls_id],cls_conf)
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
-        drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        # drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
         corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
-        drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
-        if vertices_2D is not None:
-            # drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
+        # drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
+        if vertices_2D is not None and triangles_2D is not None:
+            drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
             # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)
             # drawmask(mask, vertices_2D[i],  triangles_2D[i], width, height)
+        if vertices_2D is not None and triangles_2D is None:
             drawmaskhull(mask, vertices_2D[i], width, height)
     if savename:
         print("save plot results to %s" % savename)

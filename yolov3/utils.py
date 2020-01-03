@@ -494,19 +494,19 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
         # drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
         corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
-        # drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
+        drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
         if vertices_2D is not None and triangles_2D is not None:
             drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
             # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)
             # drawmask(mask, vertices_2D[i],  triangles_2D[i], width, height)
-        if vertices_2D is not None and triangles_2D is None:
-            drawmaskhull(mask, vertices_2D[i], width, height)
+        # if vertices_2D is not None and triangles_2D is None:
+        #     drawmaskhull(mask, vertices_2D[i], width, height)
     if savename:
         print("save plot results to %s" % savename)
         img.save(savename)
         # img = Image.fromarray(mask,'L')
         # img.save('mask.jpg')
-        plt.imsave('mask.png', mask, cmap=cm.gray)
+        # plt.imsave('mask.png', mask, cmap=cm.gray)
     return img
 
 def read_truths(lab_path):

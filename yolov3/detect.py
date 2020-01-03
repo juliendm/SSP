@@ -6,11 +6,15 @@ from utils import *
 from image import letterbox_image, correct_yolo_boxes
 from darknet import Darknet
 
+import pandas as pd
+
 import pickle
 import cv2, json
 from scipy.spatial.transform import Rotation
 
 from scipy.optimize import fmin_bfgs
+
+import json
 
 namesfile=None
 def detect(cfgfile, weightfile, imgfile):
@@ -19,6 +23,10 @@ def detect(cfgfile, weightfile, imgfile):
     m.print_network()
     m.load_weights(weightfile)
     print('Loading weights from %s... Done!' % (weightfile))
+
+    with open('cfg/flips.json') as json_file:
+        flipped = json.load(json_file)
+    print('Loading Flipped... Done')
 
     # if m.num_classes == 20:
     #     namesfile = 'data/voc.names'
@@ -31,100 +39,112 @@ def detect(cfgfile, weightfile, imgfile):
     if use_cuda:
         m.cuda()
 
-    img = Image.open(imgfile).convert('RGB').crop((0,1497,3384,2710))
-    sized = letterbox_image(img, m.width, m.height)
+    if imgfile == 'None':
+        baidu_data_submission = pd.read_csv('../../baidu_data/sample_submission.csv')
+        imgfiles = []
+        for img_id in baidu_data_submission['ImageId']:
+            imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
+    else:
+        imgfiles = [imgfile]
+    print('Loading Image Files... Done')
 
-    start = time.time()
-    boxes = do_detect(m, sized, 0.5, 0.4, use_cuda)
-    correct_yolo_boxes(boxes, img.width, img.height, m.width, m.height)
+    for imgfile in imgfiles:
 
-    finish = time.time()
-    print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))
+        img_id = imgfile.split('/')[-1].split('.')[0]   
 
+        img = Image.open(imgfile).convert('RGB').crop((0,1497,3384,2710))
+        if (img_id in flipped) and flipped[img_id]:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
-    vertices_2D = []
-    vertices_2D_colored = []
-    triangles_2D = []
-    for i in range(len(boxes)):
-        box = boxes[i]
+        sized = letterbox_image(img, m.width, m.height)
 
-        cls_id = int(box[6])
-        model_id = car_class2id[cls_id]
+        start = time.time()
+        boxes = do_detect(m, sized, 0.5, 0.4, use_cuda)
+        correct_yolo_boxes(boxes, img.width, img.height, m.width, m.height)
 
-        with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
-            data = json.load(json_file)
-
-        with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
-            coords = pickle.load(pkl_file)
-        coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
-
-        vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
-        triangles = np.array(data['faces'])-1
-        corners3D     = get_3D_corners(vertices)   
-        objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
-
-        K = np.array([[2304.5479, 0,  1686.2379],
-                      [0, 2305.8757, 1354.9849],
-                      [0, 0, 1]], dtype=np.float32)
-        num_keypoints = 10
-
-        # Denormalize the corner predictions 
-        corners2D = np.array(box[7:7+2*(num_keypoints-1)], dtype='float32').reshape(num_keypoints-1,2)
-        corners2D[:, 0] = corners2D[:, 0] * 3384.0
-        corners2D[:, 1] = corners2D[:, 1] * (2710.0-1497.0) + 1497.0
-
-        R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
-        Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
+        finish = time.time()
+        print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))
 
 
-        if i == 0:
-            angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-            # 
-            
-            with open('mask.pkl','rb') as pkl_file:
-                mask = pickle.load(pkl_file)
+        vertices_2D = []
+        vertices_2D_colored = []
+        triangles_2D = []
+        for i in range(len(boxes)):
+            box = boxes[i]
 
-            x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+            cls_id = int(box[6])
+            model_id = car_class2id[cls_id]
 
-            # Optim:
-            #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
-            x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
+            with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
+                data = json.load(json_file)
 
-            iou = -neg_iou_mask(x0,coords,mask,save=True)
-            print(iou)
+            with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
+                coords = pickle.load(pkl_file)
+            coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
 
-            R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
-            Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
+            vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
+            triangles = np.array(data['faces'])-1
+            corners3D     = get_3D_corners(vertices)   
+            objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
 
-        proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
+            K = np.array([[2304.5479, 0,  1686.2379],
+                          [0, 2305.8757, 1354.9849],
+                          [0, 0, 1]], dtype=np.float32)
+            num_keypoints = 10
 
-        vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+            # Denormalize the corner predictions 
+            corners2D = np.array(box[7:7+2*(num_keypoints-1)], dtype='float32').reshape(num_keypoints-1,2)
+            corners2D[:, 0] = corners2D[:, 0] * 3384.0
+            corners2D[:, 1] = corners2D[:, 1] * (2710.0-1497.0) + 1497.0
 
-        vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
-        vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
-        vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
+            R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
+            Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
 
-        proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
-        proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
 
-        vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
-        vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+            # if i == 0:
+            #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+            #     # 
+                
+            #     with open('mask.pkl','rb') as pkl_file:
+            #         mask = pickle.load(pkl_file)
 
-        vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
-        vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
+            #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
 
-        for j in range(num_keypoints-2):
-            boxes[i][9+2*j]   = proj_corners2D[j, 0]
-            boxes[i][9+2*j+1] = proj_corners2D[j, 1]
+            #     # Optim:
+            #     #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
+            #     x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
 
-        vertices_2D_colored.append(vertices_proj_2d_colored)
-        vertices_2D.append(vertices_proj_2d)
-        triangles_2D.append(triangles)
+            #     iou = -neg_iou_mask(x0,coords,mask,save=True)
+            #     print(iou)
 
-    class_names = load_class_names(namesfile)
+            #     R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
+            #     Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
 
-    plot_boxes(img, boxes, 'predictions.jpg', class_names, vertices_2D,triangles_2D)
-    #plot_boxes(img, boxes, 'predictions.jpg', class_names, vertices_2D_colored)
+            proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
+            proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
+            proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
+            # for j in range(num_keypoints-2):
+            #     boxes[i][9+2*j]   = proj_corners2D[j, 0]
+            #     boxes[i][9+2*j+1] = proj_corners2D[j, 1]
+
+            vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+            vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
+            vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+            vertices_2D.append(vertices_proj_2d)
+
+            vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
+            vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
+            vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
+            vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
+            vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
+            vertices_2D_colored.append(vertices_proj_2d_colored)
+
+            triangles_2D.append(triangles)
+
+        class_names = load_class_names(namesfile)
+
+        plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
+        #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
 
 
 

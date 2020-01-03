@@ -40,10 +40,13 @@ def detect(cfgfile, weightfile, imgfile):
         m.cuda()
 
     if imgfile == 'None':
-        baidu_data_submission = pd.read_csv('../../baidu_data/sample_submission.csv')
-        imgfiles = []
-        for img_id in baidu_data_submission['ImageId']:
-            imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
+        # baidu_data_submission = pd.read_csv('../../baidu_data/sample_submission.csv')
+        # imgfiles = []
+        # for img_id in baidu_data_submission['ImageId']:
+        #     imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
+        
+        with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
+           imgfiles = subm_file.readlines()
     else:
         imgfiles = [imgfile]
     print('Loading Image Files... Done')

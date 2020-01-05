@@ -44,7 +44,7 @@ def detect(cfgfile, weightfile, imgfile):
         # imgfiles = []
         # for img_id in baidu_data_submission['ImageId']:
         #     imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
-        
+
         with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
            imgfiles = subm_file.readlines()
     else:
@@ -53,9 +53,20 @@ def detect(cfgfile, weightfile, imgfile):
 
     for imgfile in imgfiles:
 
-        img_id = imgfile.split('/')[-1].split('.')[0]   
+        imgpath = imgfile.rstrip()
+        maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
+        img_id = imgpath.split('/')[-1].split('.')[0]   
 
-        img = Image.open(imgfile).convert('RGB').crop((0,1497,3384,2710))
+
+        img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
+        try: #  it avoids the unnecessary call to os.path.exists()
+            mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
+            white_img = Image.new('RGB', img.size, (255, 255, 255))
+            img = Image.composite(white_img, img, mask)
+        except OSError:
+            pass
+
+
         if (img_id in flipped) and flipped[img_id]:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
 

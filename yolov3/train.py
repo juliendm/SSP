@@ -111,7 +111,7 @@ def main():
     for name,param in model.named_parameters():
         #print(name)
         layer_index = int(name.split('.')[1])
-        if layer_index > (74-1):
+        if layer_index > 50: #(74-1):
             break
         param.requires_grad = False
     # for k, v in model.state_dict().items():

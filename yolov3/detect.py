@@ -7,6 +7,7 @@ from image import letterbox_image, correct_yolo_boxes
 from darknet import Darknet
 
 import pandas as pd
+import numpy as np
 
 import pickle
 import cv2, json
@@ -45,27 +46,39 @@ def detect(cfgfile, weightfile, imgfile):
         # for img_id in baidu_data_submission['ImageId']:
         #     imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
 
-        with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
+        with open('cfg/valid_pku_baidu.txt', 'r') as subm_file:
            imgfiles = subm_file.readlines()
+        imgfiles = imgfiles[:300]
+
+        # with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
+        #    imgfiles = subm_file.readlines()
+
     else:
         imgfiles = [imgfile]
     print('Loading Image Files... Done')
 
-    for imgfile in imgfiles:
+    submission = {}
+
+    for index,imgfile in enumerate(imgfiles):
+        if index%50==0: print(index)
 
         imgpath = imgfile.rstrip()
         maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
         img_id = imgpath.split('/')[-1].split('.')[0]   
 
+        imgpath_preprocessed = imgpath.replace('images', 'images_prepro')
 
-        img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
-        try: #  it avoids the unnecessary call to os.path.exists()
-            mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
-            white_img = Image.new('RGB', img.size, (255, 255, 255))
-            img = Image.composite(white_img, img, mask)
+        try:
+            img = Image.open(imgpath_preprocessed).convert('RGB')
         except OSError:
-            pass
-
+            img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
+            try: #  it avoids the unnecessary call to os.path.exists()
+                mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
+                white_img = Image.new('RGB', img.size, (255, 255, 255))
+                img = Image.composite(white_img, img, mask)
+            except OSError:
+                pass
+            img.save(imgpath_preprocessed)
 
         if (img_id in flipped) and flipped[img_id]:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
@@ -83,6 +96,8 @@ def detect(cfgfile, weightfile, imgfile):
         vertices_2D = []
         vertices_2D_colored = []
         triangles_2D = []
+        pred_str = ''
+
         for i in range(len(boxes)):
             box = boxes[i]
 
@@ -91,10 +106,6 @@ def detect(cfgfile, weightfile, imgfile):
 
             with open('../../baidu_data/models/json/%s.json' % car_id2name[model_id]) as json_file:
                 data = json.load(json_file)
-
-            with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
-                coords = pickle.load(pkl_file)
-            coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
 
             vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
             triangles = np.array(data['faces'])-1
@@ -111,56 +122,82 @@ def detect(cfgfile, weightfile, imgfile):
             corners2D[:, 0] = corners2D[:, 0] * 3384.0
             corners2D[:, 1] = corners2D[:, 1] * (2710.0-1497.0) + 1497.0
 
+            if (img_id in flipped) and flipped[img_id]:
+                raise NotImplementedError
+
             R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
             Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
 
+            angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+            pred = [angles[0],angles[1],angles[2],t_pr[0,0],t_pr[1,0],t_pr[2,0]]
+            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],box[5])
 
-            # if i == 0:
-            #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-            #     # 
+            
+
+        submission[img_id] = pred_str.rstrip()
+
+
+
+
+            # with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
+            #     coords = pickle.load(pkl_file)
+            # coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
+
+
+        #     # if i == 0:
+        #     #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+        #     #     # 
                 
-            #     with open('mask.pkl','rb') as pkl_file:
-            #         mask = pickle.load(pkl_file)
+        #     #     with open('mask.pkl','rb') as pkl_file:
+        #     #         mask = pickle.load(pkl_file)
 
-            #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+        #     #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
 
-            #     # Optim:
-            #     #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
-            #     x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
+        #     #     # Optim:
+        #     #     #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
+        #     #     x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
 
-            #     iou = -neg_iou_mask(x0,coords,mask,save=True)
-            #     print(iou)
+        #     #     iou = -neg_iou_mask(x0,coords,mask,save=True)
+        #     #     print(iou)
 
-            #     R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
-            #     Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
+        #     #     R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
+        #     #     Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
 
-            proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
-            proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
-            proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
-            # for j in range(num_keypoints-2):
-            #     boxes[i][9+2*j]   = proj_corners2D[j, 0]
-            #     boxes[i][9+2*j+1] = proj_corners2D[j, 1]
+        #     proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
+        #     proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
+        #     proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
+        #     # for j in range(num_keypoints-2):
+        #     #     boxes[i][9+2*j]   = proj_corners2D[j, 0]
+        #     #     boxes[i][9+2*j+1] = proj_corners2D[j, 1]
 
-            vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
-            vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
-            vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
-            vertices_2D.append(vertices_proj_2d)
+        #     vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+        #     vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
+        #     vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+        #     vertices_2D.append(vertices_proj_2d)
 
-            vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
-            vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
-            vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
-            vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
-            vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
-            vertices_2D_colored.append(vertices_proj_2d_colored)
+        #     vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
+        #     vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
+        #     vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
+        #     vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
+        #     vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
+        #     vertices_2D_colored.append(vertices_proj_2d_colored)
 
-            triangles_2D.append(triangles)
+        #     triangles_2D.append(triangles)
 
-        class_names = load_class_names(namesfile)
+        # class_names = load_class_names(namesfile)
 
-        plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
-        #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
+        # plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
+        # #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
 
 
+
+    print('Saving File')
+    submission_array = []
+    for key, value in submission.items():
+        submission_array.append([key,value])
+    df_submission = pd.DataFrame(submission_array,columns=['ImageId','PredictionString'])
+    df_submission.to_csv('submission.csv',index=False)
+    print('Done')
 
 
 

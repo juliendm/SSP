@@ -64,6 +64,7 @@ def detect(cfgfile, weightfile, imgfile):
 
         imgpath = imgfile.rstrip()
         maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
+        segm_path = image_path.replace('images', 'segmentations').replace('jpg', 'pkl')
         img_id = imgpath.split('/')[-1].split('.')[0]   
 
         imgpath_preprocessed = imgpath.replace('images', 'images_prepro')
@@ -80,23 +81,29 @@ def detect(cfgfile, weightfile, imgfile):
                 pass
             img.save(imgpath_preprocessed)
 
+        with open(segm_path,'rb') as pkl_file:
+            segms = pickle.load(pkl_file)
+
         if (img_id in flipped) and flipped[img_id]:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
         sized = letterbox_image(img, m.width, m.height)
 
+
+        # NN Predictions
+
         start = time.time()
         boxes = do_detect(m, sized, 0.5, 0.4, use_cuda)
         correct_yolo_boxes(boxes, img.width, img.height, m.width, m.height)
-
         finish = time.time()
         print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))
 
 
+        # Process Predictions
+
         vertices_2D = []
         vertices_2D_colored = []
         triangles_2D = []
-        pred_str = ''
 
         for i in range(len(boxes)):
             box = boxes[i]
@@ -129,19 +136,45 @@ def detect(cfgfile, weightfile, imgfile):
             Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
 
             angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-            pred = [angles[0],angles[1],angles[2],t_pr[0,0],t_pr[1,0],t_pr[2,0]]
-            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],box[5])
 
+            # Make Prediction Candidates
+            pred_candidate = [angles[0],angles[1],angles[2],t_pr[0,0],t_pr[1,0],t_pr[2,0],box[5],model_id]
+            pred_candidates.append(pred_candidate)
             
 
+        # Filter With IOU
+        pred_str = ''
+        preds_mask = np.ones(pred_candidates.shape[0], dtype=bool)
+        for segm_idx in range(len(segms)):
+            match_idx = 0
+            max_iou = 0.0
+            for pred_idx in range(len(pred_candidates[preds_mask])):
+                pred = pred_candidates[preds_mask][pred_idx]
+                x0 = [pred[3],pred[4],pred[5],pred[0],pred[1],pred[2]]
+                model_id = pred[7]
+                with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
+                    coords = pickle.load(pkl_file)
+                coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
+
+                iou = -neg_iou_mask(x0,coords,segms[segm_idx])
+                if iou > max_iou:
+                    max_iou = iou
+                    match_idx = pred_idx
+            if max_iou == 0.0:
+                continue
+            print(max_iou)
+            preds_mask[pred_idx] = 0
+
+            pred = pred_candidates[preds_mask][match_idx]
+            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
+
+        # Save
         submission[img_id] = pred_str.rstrip()
 
 
 
 
-            # with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
-            #     coords = pickle.load(pkl_file)
-            # coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
+
 
 
         #     # if i == 0:

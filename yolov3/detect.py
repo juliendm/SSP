@@ -64,7 +64,7 @@ def detect(cfgfile, weightfile, imgfile):
 
         imgpath = imgfile.rstrip()
         maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
-        segm_path = image_path.replace('images', 'segmentations').replace('jpg', 'pkl')
+        segm_path = imgpath.replace('images', 'segmentations').replace('jpg', 'pkl')
         img_id = imgpath.split('/')[-1].split('.')[0]   
 
         imgpath_preprocessed = imgpath.replace('images', 'images_prepro')
@@ -105,6 +105,8 @@ def detect(cfgfile, weightfile, imgfile):
         vertices_2D_colored = []
         triangles_2D = []
 
+        pred_candidates = []
+
         for i in range(len(boxes)):
             box = boxes[i]
 
@@ -144,6 +146,7 @@ def detect(cfgfile, weightfile, imgfile):
 
         # Filter With IOU
         pred_str = ''
+        pred_candidates = np.array(pred_candidates)
         preds_mask = np.ones(pred_candidates.shape[0], dtype=bool)
         for segm_idx in range(len(segms)):
             match_idx = 0
@@ -163,10 +166,9 @@ def detect(cfgfile, weightfile, imgfile):
             if max_iou == 0.0:
                 continue
             print(max_iou)
-            preds_mask[pred_idx] = 0
-
             pred = pred_candidates[preds_mask][match_idx]
             pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
+            preds_mask[pred_idx] = 0
 
         # Save
         submission[img_id] = pred_str.rstrip()

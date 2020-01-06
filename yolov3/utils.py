@@ -311,7 +311,7 @@ def drawhull(drawcontext, vertices, im_width, im_height, outline=None, width=0):
 
 def neg_iou_mask(x,coords,mask,save=False):
 
-    print(x)
+    # print(x)
 
     # delta_x,delta_y,delta_z,angle_x,angle_y,angle_z
 
@@ -339,7 +339,7 @@ def neg_iou_mask(x,coords,mask,save=False):
 
     iou = np.sum(mask&mask_pr)/np.sum(mask|mask_pr)
 
-    print(iou)
+    # print(iou)
 
     return -iou
 
@@ -398,7 +398,14 @@ def drawmaskhull(mask, coords, im_width, im_height):
             ys = vertices[ver,1]*im_height
 
             ind_x,ind_y = inside_polygone(ys,xs)
-            mask[ind_x,ind_y] = 1
+
+            idx_mask = np.ones(ind_x.shape[0], dtype=bool)
+            idx_mask = np.logical_and(idx_mask, ind_x >= 0)
+            idx_mask = np.logical_and(idx_mask, ind_x < mask.shape[0])
+            idx_mask = np.logical_and(idx_mask, ind_y >= 0)
+            idx_mask = np.logical_and(idx_mask, ind_y < mask.shape[1])
+
+            mask[ind_x[idx_mask],ind_y[idx_mask]] = 1
 
 def drawmask(mask, vertices, triangles, im_width, im_height):
     for tri in triangles:

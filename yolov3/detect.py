@@ -185,41 +185,40 @@ def detect(cfgfile, weightfile, imgfile):
             triangles_2D.append(triangles)
 
 
-        #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
+        plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
         #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
 
 
 
-
-        # Filter With IOU
         pred_str = ''
-        pred_candidates = np.array(pred_candidates)
-        preds_mask = np.ones(pred_candidates.shape[0], dtype=bool)
-        for segm_idx in range(len(segms)):
-            match_idx = 0
-            max_iou = 0.0
-            for pred_idx in range(len(pred_candidates[preds_mask])):
-                pred = pred_candidates[preds_mask][pred_idx]
-                x0 = [pred[3],pred[4],pred[5],pred[0],pred[1],pred[2]]
-                model_id = pred[7]
-                with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
-                    coords = pickle.load(pkl_file)
-                coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
 
-                iou = -neg_iou_mask(x0,coords,segms[segm_idx])
-                if iou > max_iou:
-                    max_iou = iou
-                    match_idx = pred_idx
-            if max_iou == 0.0:
-                continue
-            print(max_iou)
-            pred = pred_candidates[preds_mask][match_idx]
-            print(pred)
-            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
-            preds_mask[pred_idx] = 0
+        # # Filter With IOU
+        # pred_candidates = np.array(pred_candidates)
+        # preds_mask = np.ones(pred_candidates.shape[0], dtype=bool)
+        # for segm_idx in range(len(segms)):
+        #     match_idx = 0
+        #     max_iou = 0.0
+        #     for pred_idx in range(len(pred_candidates[preds_mask])):
+        #         pred = pred_candidates[preds_mask][pred_idx]
+        #         x0 = [pred[3],pred[4],pred[5],pred[0],pred[1],pred[2]]
+        #         model_id = pred[7]
+        #         with open('../../baidu_data/models/pkl/%s.pkl' % car_id2name[model_id], 'rb') as pkl_file:
+        #             coords = pickle.load(pkl_file)
+        #         coords[(coords[:,3]==0)&(coords[:,1]<-0.3),3]=7
+
+        #         iou = -neg_iou_mask(x0,coords,segms[segm_idx])
+        #         if iou > max_iou:
+        #             max_iou = iou
+        #             match_idx = pred_idx
+        #     if max_iou == 0.0:
+        #         continue
+        #     print(max_iou)
+        #     pred = pred_candidates[preds_mask][match_idx]
+        #     print(pred)
+        #     pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
+        #     preds_mask[pred_idx] = 0
 
         # # Filter With Score
-        # pred_str = ''
         # pred_candidates = np.array(pred_candidates)
         # for pred_idx in range(len(pred_candidates)):
         #     pred = pred_candidates[pred_idx]

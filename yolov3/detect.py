@@ -68,6 +68,7 @@ def detect(cfgfile, weightfile, imgfile):
         maskpath = imgpath.replace('images', 'masks').replace('JPEGImages', 'masks')
         segm_path = imgpath.replace('images', 'segmentations').replace('jpg', 'pkl')
         img_id = imgpath.split('/')[-1].split('.')[0]   
+        yolov3_path = '../../baidu_data/predictions_yolov3/%s.pkl' % img_id
 
         imgpath_preprocessed = imgpath.replace('images', 'images_prepro')
 
@@ -86,6 +87,9 @@ def detect(cfgfile, weightfile, imgfile):
         with open(segm_path,'rb') as pkl_file:
             segms = pickle.load(pkl_file)
 
+        with open(yolov3_path,'rb') as pkl_file:
+            boxes_yolov3 = pickle.load(pkl_file)
+
         if (img_id in flipped) and flipped[img_id]:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
@@ -99,6 +103,37 @@ def detect(cfgfile, weightfile, imgfile):
         finish = time.time()
         print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))
 
+
+        # IOU boxes, boxes_yolov3
+
+        boxes = np.array(boxes)
+        boxes_mask = np.ones(boxes.shape[0], dtype=bool)
+        filtered_boxes = []
+
+        print(len(boxes_yolov3))
+
+        for k in range(len(boxes_yolov3)):
+            gt_boxes = torch.FloatTensor(boxes_yolov3[k])
+            gt_boxes = gt_boxes.repeat(len(boxes[boxes_mask]),1).t()
+            pred_boxes = torch.FloatTensor(boxes[boxes_mask]).t()
+            best_iou, best_i = torch.max(multi_bbox_ious(gt_boxes, pred_boxes, x1y1x2y2=False),0)
+            if best_iou > 0.1:
+                filtered_boxes.append(boxes[boxes_mask][best_i])
+            boxes_mask[best_i] = 0
+        filtered_boxes = np.array(filtered_boxes)
+
+        print(len(filtered_boxes))
+
+
+            # # pred_boxes and gt_boxes are transposed for torch.max
+            # if best_iou > iou_thresh and pred_boxes[6][best_j] == gt_boxes[6][0]:
+            #     correct += 1
+
+
+        # ious = multi_bbox_ious( torch.FloatTensor(boxes).t(),  torch.FloatTensor(boxes_yolov3).t(), x1y1x2y2=False)
+
+        # print(ious)
+
         # Process Predictions
 
         vertices_2D = []
@@ -107,8 +142,8 @@ def detect(cfgfile, weightfile, imgfile):
 
         pred_candidates = []
 
-        for i in range(len(boxes)):
-            box = boxes[i]
+        for i in range(len(filtered_boxes)):
+            box = filtered_boxes[i]
 
             cls_id = int(box[6])
             model_id = car_class2id[cls_id]
@@ -185,10 +220,8 @@ def detect(cfgfile, weightfile, imgfile):
             triangles_2D.append(triangles)
 
 
-        plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
+        plot_boxes(img, filtered_boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
         #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
-
-
 
         pred_str = ''
 
@@ -218,13 +251,11 @@ def detect(cfgfile, weightfile, imgfile):
         #     pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
         #     preds_mask[pred_idx] = 0
 
-        # # Filter With Score
-        # pred_candidates = np.array(pred_candidates)
-        # for pred_idx in range(len(pred_candidates)):
-        #     pred = pred_candidates[pred_idx]
-        #     if 1:
-        #         pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
-
+        # Filter With Score
+        pred_candidates = np.array(pred_candidates)
+        for pred_idx in range(len(pred_candidates)):
+            pred = pred_candidates[pred_idx]
+            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
 
         # Save
         submission[img_id] = pred_str.rstrip()

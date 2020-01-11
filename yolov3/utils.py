@@ -499,9 +499,9 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
             rgb = (red, green, blue)
             text = "{} : {:.3f}".format(class_names[cls_id],cls_conf)
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
-        drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        #drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
         corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
-        #drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
+        drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
         # if vertices_2D is not None and triangles_2D is not None:
             # drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
             # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)

@@ -70,8 +70,8 @@ class listDataset(Dataset):
     
             labpath = imgpath.replace('images', 'labels').replace('JPEGImages', 'labels').replace('.jpg', '.txt').replace('.png','.txt')
             
-            num_keypoints = 1
-            num_labels = 12
+            num_keypoints = 10
+            num_labels = 2*num_keypoints+3
 
             label = torch.zeros(50*num_labels)
             #if os.path.getsize(labpath):

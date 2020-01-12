@@ -197,11 +197,11 @@ def data_augmentation_nocrop(img, shape, jitter, hue, sat, exp):
 
 def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
     max_boxes = 50
-
-    num_keypoints = 1
-    num_labels = 12
+    num_keypoints = 10
+    num_labels = 2*num_keypoints+3
 
     label = np.zeros((max_boxes,num_labels))
+    # label = np.zeros((max_boxes,5))
 
     if os.path.getsize(labpath):
         bs = np.loadtxt(labpath)
@@ -228,17 +228,31 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
                 ys[j] = ys[j] * sy - dy 
 
             if flip:
-                raise NotImplementedError
+                for j in range(num_keypoints):
+                    xs[j] =  0.999 - xs[j]
 
+                xs[2+0],xs[2+4] = xs[2+4],xs[2+0]
+                ys[2+0],ys[2+4] = ys[2+4],ys[2+0]
+
+                xs[2+1],xs[2+5] = xs[2+5],xs[2+1]
+                ys[2+1],ys[2+5] = ys[2+5],ys[2+1]
+
+                xs[2+2],xs[2+6] = xs[2+6],xs[2+2]
+                ys[2+2],ys[2+6] = ys[2+6],ys[2+2]
+
+                xs[2+3],xs[2+7] = xs[2+7],xs[2+3]
+                ys[2+3],ys[2+7] = ys[2+7],ys[2+3]
+
+            
             for j in range(num_keypoints):
                 bs[i][2*j+1] = xs[j]
                 bs[i][2*j+2] = ys[j]
 
-            bs[i][-2] = bs[i][-2] * sx
-            bs[i][-1] = bs[i][-1]*2710.0/(2710.0-1497.0) * sy
+            bs[i][2*num_keypoints+1] = bs[i][2*num_keypoints+1] * sx
+            bs[i][2*num_keypoints+2] = bs[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0) * sy
 
-            if bs[i][-2] < 0.002 or bs[i][-1] < 0.002 or \
-                (crop and (bs[i][-2]/bs[i][-1] > 20 or bs[i][-1]/bs[i][-2] > 20)):
+            if bs[i][2*num_keypoints+1] < 0.002 or bs[i][2*num_keypoints+2] < 0.002 or \
+                (crop and (bs[i][2*num_keypoints+1]/bs[i][2*num_keypoints+2] > 20 or bs[i][2*num_keypoints+2]/bs[i][2*num_keypoints+1] > 20)):
                 continue
 
 
@@ -271,7 +285,8 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
             #     continue
 
 
-            bs[i][0] = 0 #car_id2class[bs[i][0]]
+            # bs[i][0] = car_id2class[bs[i][0]]
+            bs[i][0] = bs[i][0]
 
             label[cc] = bs[i]
             # label[cc] = np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
@@ -300,6 +315,8 @@ def letterbox_image(img, net_w, net_h):
 
 def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
 
+    num_keypoints = 10
+
     im_w, im_h = float(im_w), float(im_h)
     net_w, net_h = float(net_w), float(net_h)
     if net_w/im_w < net_h/im_h:
@@ -318,6 +335,10 @@ def correct_yolo_boxes(boxes, im_w, im_h, net_w, net_h):
         b[1] = (b[1] - yo) * ys
         b[2] *= xs
         b[3] *= ys
+        
+        for c in range(num_keypoints-1):
+            b[7+2*c]   = (b[7+2*c]   - xo) * xs
+            b[7+2*c+1] = (b[7+2*c+1] - yo) * ys
 
     return
 

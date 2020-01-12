@@ -111,7 +111,7 @@ def main():
     for name,param in model.named_parameters():
         #print(name)
         layer_index = int(name.split('.')[1])
-        if layer_index > (74-1):
+        if layer_index > 50: #(74-1):
             break
         param.requires_grad = False
     # for k, v in model.state_dict().items():
@@ -240,6 +240,7 @@ def train(epoch):
 
     for batch_idx, (data, target) in enumerate(train_loader):
 
+
         visualize = False
         if visualize:
             def truths_length(truths):
@@ -247,8 +248,8 @@ def train(epoch):
                     if truths[i][1] == 0:
                         return i
             edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
-            num_keypoints = 1
-            num_labels = 12
+            num_keypoints = 10
+            num_labels = 2*num_keypoints+3
 
             for i in range(data.size(0)):
                 plt.figure()
@@ -266,14 +267,14 @@ def train(epoch):
                 num_gts = truths_length(truths)
                 for k in range(num_gts): 
                     plt.scatter(truths[k, 1]*1696, truths[k, 2]*608, s=10, color='b')
-                    # plt.scatter(truths[k, 3]*1696, truths[k, 4]*608, s=10, color='g')
-                    # corners_gt = truths[k, 5:2*num_keypoints+1].reshape(8,2)
-                    # for edge in edges_corners:
-                    #     plt.plot(corners_gt[edge, 0].numpy()*1696, corners_gt[edge, 1].numpy()*608, color='g', linewidth=1)
-                    x1 = (truths[k, 1]-truths[k, 2*num_keypoints+7+1]/2.0)*1696
-                    y1 = (truths[k, 2]-truths[k, 2*num_keypoints+7+2]/2.0)*608
-                    x2 = (truths[k, 1]+truths[k, 2*num_keypoints+7+1]/2.0)*1696
-                    y2 = (truths[k, 2]+truths[k, 2*num_keypoints+7+2]/2.0)*608
+                    plt.scatter(truths[k, 3]*1696, truths[k, 4]*608, s=10, color='g')
+                    corners_gt = truths[k, 5:2*num_keypoints+1].reshape(8,2)
+                    for edge in edges_corners:
+                        plt.plot(corners_gt[edge, 0].numpy()*1696, corners_gt[edge, 1].numpy()*608, color='g', linewidth=1)
+                    x1 = (truths[k, 1]-truths[k, -2]/2.0)*1696
+                    y1 = (truths[k, 2]-truths[k, -1]/2.0)*608
+                    x2 = (truths[k, 1]+truths[k, -2]/2.0)*1696
+                    y2 = (truths[k, 2]+truths[k, -1]/2.0)*608
                     plt.plot([x1,x2,x2,x1,x1], [y1,y1,y2,y2,y1], color='b', linewidth=1)
 
                 plt.gca().invert_yaxis()
@@ -380,8 +381,8 @@ def test(epoch):
     proposals   = 0.0
     correct     = 0.0
 
-    num_keypoints = 1
-    num_labels = 12
+    num_keypoints = 10
+    num_labels = 2*num_keypoints+3
 
     if cur_model.net_name() == 'region': # region_layer
         shape=(0,0)

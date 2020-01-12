@@ -37,8 +37,8 @@ class YoloLayer(nn.Module):
 
     def build_targets(self, pred_boxes, target, anchors, nA, nH, nW):
 
-        num_keypoints = 10
-        num_labels = 2*num_keypoints+3
+        num_keypoints = 1
+        num_labels = 12
 
         nB = target.size(0)
         anchor_step = anchors.size(1) # anchors[nA][anchor_step]
@@ -59,7 +59,7 @@ class YoloLayer(nn.Module):
         anchors = anchors.to("cpu")
 
         for b in range(nB):
-            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors,[0,1,2*num_keypoints,2*num_keypoints+1]].t()  # Filter!!!
+            cur_pred_boxes = pred_boxes[b*nAnchors:(b+1)*nAnchors,[0,1,2*num_keypoints+7,2*num_keypoints+7+1]].t()  # Filter!!!
             cur_ious = torch.zeros(nAnchors)
             tbox = target[b].view(-1,num_labels).to("cpu")
 
@@ -67,7 +67,7 @@ class YoloLayer(nn.Module):
                 if tbox[t][1] == 0:
                     break
                 gx, gy = tbox[t][1] * nW, tbox[t][2] * nH
-                gw, gh = tbox[t][2*num_keypoints+1] * self.net_width, tbox[t][2*num_keypoints+2] * self.net_height
+                gw, gh = tbox[t][-2] * self.net_width, tbox[t][-1] * self.net_height
                 cur_gt_boxes = torch.FloatTensor([gx, gy, gw, gh]).repeat(nAnchors,1).t()
                 cur_ious = torch.max(cur_ious, multi_bbox_ious(cur_pred_boxes, cur_gt_boxes, x1y1x2y2=False))
             ignore_ix = (cur_ious>self.ignore_thresh).view(nA,nH,nW)
@@ -79,7 +79,7 @@ class YoloLayer(nn.Module):
                 nGT += 1
 
                 gx, gy = tbox[t][1] * nW, tbox[t][2] * nH
-                gw, gh = tbox[t][2*num_keypoints+1] * self.net_width, tbox[t][2*num_keypoints+2] * self.net_height
+                gw, gh = tbox[t][2*num_keypoints+7+1] * self.net_width, tbox[t][2*num_keypoints+7+2] * self.net_height
                 gw, gh = gw.float(), gh.float()
                 gi, gj = int(gx), int(gy)
 
@@ -88,19 +88,19 @@ class YoloLayer(nn.Module):
                 _, best_n = torch.max(multi_bbox_ious(anchor_boxes, tmp_gt_boxes, x1y1x2y2=False), 0)
 
                 gt_box = torch.FloatTensor([gx, gy, gw, gh])
-                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi,[0,1,2*num_keypoints,2*num_keypoints+1]] # Filter!!!
+                pred_box = pred_boxes[b*nAnchors+best_n*nPixels+gj*nW+gi,[0,1,2*num_keypoints+7,2*num_keypoints+7+1]] # Filter!!!
                 iou = bbox_iou(gt_box, pred_box, x1y1x2y2=False)
 
                 obj_mask  [b][best_n][gj][gi] = 1
                 noobj_mask[b][best_n][gj][gi] = 0
-                coord_mask[b][best_n][gj][gi] = 2. - tbox[t][2*num_keypoints+1]*tbox[t][2*num_keypoints+2]
+                coord_mask[b][best_n][gj][gi] = 2. - tbox[t][2*num_keypoints+7+1]*tbox[t][2*num_keypoints+7+2]
 
                 for i in range(num_keypoints):
                     tcoord[2*i][b][best_n][gj][gi]   = tbox[t][2*i+1] * nW - gi
                     tcoord[2*i+1][b][best_n][gj][gi] = tbox[t][2*i+2] * nH - gj
 
-                tcoord[2*num_keypoints][b][best_n][gj][gi] = math.log(gw/anchors[best_n][0])
-                tcoord[2*num_keypoints+1][b][best_n][gj][gi] = math.log(gh/anchors[best_n][1])
+                tcoord[2*num_keypoints+7][b][best_n][gj][gi] = math.log(gw/anchors[best_n][0])
+                tcoord[2*num_keypoints+7+1][b][best_n][gj][gi] = math.log(gh/anchors[best_n][1])
                 tcls      [b][best_n][gj][gi][int(tbox[t][0])] = 1
                 tconf     [b][best_n][gj][gi] = iou if self.rescore else 1.
 
@@ -113,8 +113,8 @@ class YoloLayer(nn.Module):
 
     def forward(self, output, target):
 
-        num_keypoints = 10
-        num_labels = 2*num_keypoints+3
+        num_keypoints = 1
+        num_labels = 12
 
         #output : BxAs*(4+1+num_classes)*H*W
         mask_tuple = self.get_mask_boxes(output)
@@ -149,8 +149,10 @@ class YoloLayer(nn.Module):
         for i in range(num_keypoints):
             pred_boxes[2*i]   = coord[2*i]   + grid_x
             pred_boxes[2*i+1] = coord[2*i+1] + grid_y
-        pred_boxes[2*num_keypoints]   = coord[2*num_keypoints].exp() * anchor_w
-        pred_boxes[2*num_keypoints+1] = coord[2*num_keypoints+1].exp() * anchor_h
+        for i in range(7):
+            pred_boxes[2*num_keypoints+i]   = coord[2*num_keypoints+i]
+        pred_boxes[2*num_keypoints+7]   = coord[2*num_keypoints+7].exp() * anchor_w
+        pred_boxes[2*num_keypoints+7+1] = coord[2*num_keypoints+7+1].exp() * anchor_h
 
         # for build_targets. it works faster on CPU than on GPU
         pred_boxes = convert2cpu(pred_boxes.transpose(0,1).contiguous().view(-1,num_labels-1)).detach()
@@ -174,13 +176,15 @@ class YoloLayer(nn.Module):
 
         t3 = time.time()
         loss_coord  = nn.BCELoss(reduction='sum')(coord[0:2], tcoord[0:2])/nB + \
-                      nn.MSELoss(reduction='sum')(coord[2*num_keypoints:2*num_keypoints+2], tcoord[2*num_keypoints:2*num_keypoints+2])/nB
-        loss_corner = nn.MSELoss(reduction='sum')(coord[2:2*num_keypoints], tcoord[2:2*num_keypoints])/nB
+                      nn.MSELoss(reduction='sum')(coord[2*num_keypoints+7:2*num_keypoints+7+2], tcoord[2*num_keypoints+7:2*num_keypoints+7+2])/nB
+
+        loss_rot = #nn.MSELoss(reduction='sum')(coord[2:2*num_keypoints], tcoord[2:2*num_keypoints])/nB
+        loss_trans =
+
         loss_conf   = nn.BCELoss(reduction='sum')(conf*conf_mask, tconf*conf_mask)/nB
         loss_cls    = nn.BCEWithLogitsLoss(reduction='sum')(cls, tcls)/nB
 
-        loss_box = loss_coord + 1.0*loss_corner
-        loss = loss_box + loss_conf + 1.0*loss_cls
+        loss = loss_coord + loss_rot + loss_trans + loss_conf + loss_cls
 
         t4 = time.time()
         if False:
@@ -192,8 +196,8 @@ class YoloLayer(nn.Module):
             print('             total : %f' % (t4 - t0))
             
         if (self.seen-self.seen//100*100) < nB:
-            print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: box %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
-                % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_box, loss_conf, loss_cls, loss))
+            print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: coord %6.3f, rot %6.3f, trans %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
+                % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_coord, loss_rot, loss_trans, loss_conf, loss_cls, loss))
         if math.isnan(loss.item()):
             print(coord, conf, tconf)
             sys.exit(0)

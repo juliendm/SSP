@@ -145,8 +145,8 @@ def get_all_boxes(output, netshape, conf_thresh, num_classes, only_objectness=1,
 
 def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_anchors, only_objectness=1, validation=False, use_cuda=True):
 
-    num_keypoints = 10
-    num_labels = 2*num_keypoints+3
+    num_keypoints = 1
+    num_labels = 12
 
     device = torch.device("cuda" if use_cuda else "cpu")
     anchors = anchors.to(device)
@@ -176,10 +176,13 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
     # HAS TO BE IMPROVED
     xs, ys = output[0].sigmoid() + grid_x, output[1].sigmoid() + grid_y
 
-    corners = output[2:2*num_keypoints].view((num_keypoints-1),2,-1)
-    xcs, ycs = corners[:,0] + grid_x, corners[:,1] + grid_y
+    if num_keypoints > 1:
+        corners = output[2:2*num_keypoints].view((num_keypoints-1),2,-1)
+        xcs, ycs = corners[:,0] + grid_x, corners[:,1] + grid_y
 
-    ws, hs = output[2*num_keypoints].exp() * anchor_w.detach(), output[2*num_keypoints+1].exp() * anchor_h.detach()
+    trans_rot = output[2*num_keypoints:2*num_keypoints+7]
+
+    ws, hs = output[2*num_keypoints+7].exp() * anchor_w.detach(), output[2*num_keypoints+7+1].exp() * anchor_h.detach()
     det_confs = output[num_labels-1].sigmoid()
 
     # by ysyun, dim=1 means input is 2D or even dimension else dim=0
@@ -195,7 +198,9 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
     cls_max_confs = convert2cpu(cls_max_confs)
     cls_max_ids = convert2cpu_long(cls_max_ids)
     xs, ys = convert2cpu(xs), convert2cpu(ys)
-    xcs, ycs = convert2cpu(xcs), convert2cpu(ycs)
+    if num_keypoints > 1:
+        xcs, ycs = convert2cpu(xcs), convert2cpu(ycs)
+    trans_rot = convert2cpu(trans_rot)
     ws, hs = convert2cpu(ws), convert2cpu(hs)
     if validation:
         cls_confs = convert2cpu(cls_confs.view(-1, num_classes))
@@ -221,6 +226,8 @@ def get_region_boxes(output, netshape, conf_thresh, num_classes, anchors, num_an
                         for cor in range(num_keypoints-1):
                             box.append(xcs[cor][ind]/w)
                             box.append(ycs[cor][ind]/h)
+                        for tr_idx in range(7):
+                            box.append(trans_rot[tr_idx][ind])
                         if (not only_objectness) and validation:
                             for c in range(num_classes):
                                 tmp_conf = cls_confs[ind][c]
@@ -460,8 +467,8 @@ def drawtext(img, pos, text, bgcolor=(255,255,255), font=None):
     img.paste(box_img, (sx, sy))
 
 def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, triangles_2D=None):
-    num_keypoints = 10
-    num_labels = 2*num_keypoints+3
+    num_keypoints = 1
+    num_labels = 12
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]])
     def get_color(c, x, max_val):
         ratio = float(x)/max_val * 5
@@ -499,9 +506,9 @@ def plot_boxes(img, boxes, savename=None, class_names=None, vertices_2D=None, tr
             rgb = (red, green, blue)
             text = "{} : {:.3f}".format(class_names[cls_id],cls_conf)
             drawtext(img, (x1, y1), text, bgcolor=rgb, font=font)
-        #drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
-        corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
-        drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
+        drawrect(draw, [x1, y1, x2, y2], outline=rgb, width=2)
+        #corners = np.array(box[9:9+2*(num_keypoints-1)]).reshape(8,2)
+        #drawbox(draw, corners[:,0]*width, corners[:,1]*height, outline=rgb, width=2)
         # if vertices_2D is not None and triangles_2D is not None:
             # drawmesh(draw, vertices_2D[i],  triangles_2D[i], width, height, outline=rgb, width=1)
             # drawhull(draw, vertices_2D[i], width, height, outline=rgb, width=1)
@@ -521,16 +528,16 @@ def read_truths(lab_path):
         return np.array([])
     if os.path.getsize(lab_path):
         truths = np.loadtxt(lab_path)
-        num_keypoints = 10
-        num_labels = 2*num_keypoints+3
+        num_keypoints = 1
+        num_labels = 12
         truths = truths.reshape(-1, num_labels) # to avoid single truth problem
         return truths
     else:
         return np.array([])
 
 def read_truths_args(lab_path, min_box_scale):
-    num_keypoints = 10
-    num_labels = 2*num_keypoints+3
+    num_keypoints = 1
+    num_labels = 12
     truths = read_truths(lab_path)
     new_truths = []
     for i in range(truths.shape[0]):
@@ -539,8 +546,8 @@ def read_truths_args(lab_path, min_box_scale):
         for j in range(num_keypoints):
             new_truths.append(truths[i][2*j+1])
             new_truths.append((truths[i][2*j+2]*2710.0-1497.0)/(2710.0-1497.0))
-        new_truths.append(truths[i][2*num_keypoints+1])
-        new_truths.append(truths[i][2*num_keypoints+2]*2710.0/(2710.0-1497.0))
+        new_truths.append(truths[i][-2])
+        new_truths.append(truths[i][-1]*2710.0/(2710.0-1497.0))
 
 
         # truths[i][2] = (truths[i][2]*2710.0-1497.0)/(2710.0-1497.0)

@@ -48,9 +48,9 @@ def detect(cfgfile, weightfile, imgfile):
         # for img_id in baidu_data_submission['ImageId']:
         #     imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
 
-        with open('cfg/valid_pku_baidu.txt', 'r') as subm_file:
+        with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
            imgfiles = subm_file.readlines()
-        imgfiles = imgfiles[:30]
+        imgfiles = imgfiles
 
         # with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
         #    imgfiles = subm_file.readlines()
@@ -72,23 +72,23 @@ def detect(cfgfile, weightfile, imgfile):
 
         imgpath_preprocessed = imgpath.replace('images', 'images_prepro')
 
-        try:
-            img = Image.open(imgpath_preprocessed).convert('RGB')
+        # try:
+        #     img = Image.open(imgpath_preprocessed).convert('RGB')
+        # except OSError:
+        img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
+        try: #  it avoids the unnecessary call to os.path.exists()
+            mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
+            white_img = Image.new('RGB', img.size, (255, 255, 255))
+            img = Image.composite(white_img, img, mask)
         except OSError:
-            img = Image.open(imgpath).convert('RGB').crop((0,1497,3384,2710))
-            try: #  it avoids the unnecessary call to os.path.exists()
-                mask = Image.open(maskpath).convert('L').crop((0,1497,3384,2710))
-                white_img = Image.new('RGB', img.size, (255, 255, 255))
-                img = Image.composite(white_img, img, mask)
-            except OSError:
-                pass
-            img.save(imgpath_preprocessed)
+            pass
+            # img.save(imgpath_preprocessed)
 
         with open(segm_path,'rb') as pkl_file:
             segms = pickle.load(pkl_file)
 
-        with open(yolov3_path,'rb') as pkl_file:
-            boxes_yolov3 = pickle.load(pkl_file)
+        # with open(yolov3_path,'rb') as pkl_file:
+        #     boxes_yolov3 = pickle.load(pkl_file)
 
         if (img_id in flipped) and flipped[img_id]:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
@@ -110,19 +110,21 @@ def detect(cfgfile, weightfile, imgfile):
         boxes_mask = np.ones(boxes.shape[0], dtype=bool)
         filtered_boxes = []
 
-        print(len(boxes_yolov3))
+        # print(len(boxes_yolov3))
 
-        for k in range(len(boxes_yolov3)):
-            gt_boxes = torch.FloatTensor(boxes_yolov3[k])
-            gt_boxes = gt_boxes.repeat(len(boxes[boxes_mask]),1).t()
-            pred_boxes = torch.FloatTensor(boxes[boxes_mask]).t()
-            best_iou, best_i = torch.max(multi_bbox_ious(gt_boxes, pred_boxes, x1y1x2y2=False),0)
-            if best_iou > 0.1:
-                filtered_boxes.append(boxes[boxes_mask][best_i])
-            boxes_mask[best_i] = 0
-        filtered_boxes = np.array(filtered_boxes)
+        # for k in range(len(boxes_yolov3)):
+        #     gt_boxes = torch.FloatTensor(boxes_yolov3[k])
+        #     gt_boxes = gt_boxes.repeat(len(boxes[boxes_mask]),1).t()
+        #     pred_boxes = torch.FloatTensor(boxes[boxes_mask]).t()
+        #     best_iou, best_i = torch.max(multi_bbox_ious(gt_boxes, pred_boxes, x1y1x2y2=False),0)
+        #     if best_iou > 0.1:
+        #         filtered_boxes.append(boxes[boxes_mask][best_i])
+        #     boxes_mask[best_i] = 0
+        # filtered_boxes = np.array(filtered_boxes)
 
-        print(len(filtered_boxes))
+        # print(len(filtered_boxes))
+
+        filtered_boxes = boxes
 
 
             # # pred_boxes and gt_boxes are transposed for torch.max
@@ -142,8 +144,32 @@ def detect(cfgfile, weightfile, imgfile):
 
         pred_candidates = []
 
+        num_keypoints = 10
+
         for i in range(len(filtered_boxes)):
             box = filtered_boxes[i]
+
+            if (img_id in flipped) and flipped[img_id]:
+                box[0] =  1.0 - box[0]
+
+                corners = np.array(box[7:7+2*num_keypoints]).reshape(9,2)
+                corners[:,0] = 1.0 - corners[:,0]
+
+                corners[1+0,0],corners[1+4,0] = corners[1+4,0],corners[1+0,0]
+                corners[1+0,1],corners[1+4,1] = corners[1+4,1],corners[1+0,1]
+
+                corners[1+1,0],corners[1+5,0] = corners[1+5,0],corners[1+1,0]
+                corners[1+1,1],corners[1+5,1] = corners[1+5,1],corners[1+1,1]
+
+                corners[1+2,0],corners[1+6,0] = corners[1+6,0],corners[1+2,0]
+                corners[1+2,1],corners[1+6,1] = corners[1+6,1],corners[1+2,1]
+
+                corners[1+3,0],corners[1+7,0] = corners[1+7,0],corners[1+3,0]
+                corners[1+3,1],corners[1+7,1] = corners[1+7,1],corners[1+3,1]
+
+                for j in range(num_keypoints-1):
+                    box[2*j+7] = corners[j,0]
+                    box[2*j+1+7] = corners[j,1]
 
             cls_id = int(box[6])
             model_id = car_class2id[cls_id]
@@ -159,15 +185,11 @@ def detect(cfgfile, weightfile, imgfile):
             K = np.array([[2304.5479, 0,  1686.2379],
                           [0, 2305.8757, 1354.9849],
                           [0, 0, 1]], dtype=np.float32)
-            num_keypoints = 10
 
             # Denormalize the corner predictions 
             corners2D = np.array(box[7:7+2*(num_keypoints-1)], dtype='float32').reshape(num_keypoints-1,2)
             corners2D[:, 0] = corners2D[:, 0] * 3384.0
             corners2D[:, 1] = corners2D[:, 1] * (2710.0-1497.0) + 1497.0
-
-            if (img_id in flipped) and flipped[img_id]:
-                raise NotImplementedError
 
             R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
             Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
@@ -219,6 +241,9 @@ def detect(cfgfile, weightfile, imgfile):
 
             triangles_2D.append(triangles)
 
+
+        if (img_id in flipped) and flipped[img_id]:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
         plot_boxes(img, filtered_boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
         #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)

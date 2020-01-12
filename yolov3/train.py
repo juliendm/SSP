@@ -111,7 +111,7 @@ def main():
     for name,param in model.named_parameters():
         #print(name)
         layer_index = int(name.split('.')[1])
-        if layer_index > 50: #(74-1):
+        if layer_index > (74-1):
             break
         param.requires_grad = False
     # for k, v in model.state_dict().items():
@@ -240,7 +240,6 @@ def train(epoch):
 
     for batch_idx, (data, target) in enumerate(train_loader):
 
-
         visualize = False
         if visualize:
             def truths_length(truths):
@@ -271,10 +270,10 @@ def train(epoch):
                     # corners_gt = truths[k, 5:2*num_keypoints+1].reshape(8,2)
                     # for edge in edges_corners:
                     #     plt.plot(corners_gt[edge, 0].numpy()*1696, corners_gt[edge, 1].numpy()*608, color='g', linewidth=1)
-                    x1 = (truths[k, 1]-truths[k, -2]/2.0)*1696
-                    y1 = (truths[k, 2]-truths[k, -1]/2.0)*608
-                    x2 = (truths[k, 1]+truths[k, -2]/2.0)*1696
-                    y2 = (truths[k, 2]+truths[k, -1]/2.0)*608
+                    x1 = (truths[k, 1]-truths[k, 2*num_keypoints+7+1]/2.0)*1696
+                    y1 = (truths[k, 2]-truths[k, 2*num_keypoints+7+2]/2.0)*608
+                    x2 = (truths[k, 1]+truths[k, 2*num_keypoints+7+1]/2.0)*1696
+                    y2 = (truths[k, 2]+truths[k, 2*num_keypoints+7+2]/2.0)*608
                     plt.plot([x1,x2,x2,x1,x1], [y1,y1,y2,y2,y1], color='b', linewidth=1)
 
                 plt.gca().invert_yaxis()

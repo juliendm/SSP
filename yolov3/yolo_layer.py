@@ -183,11 +183,13 @@ class YoloLayer(nn.Module):
         
         trans_pred = coord[2*num_keypoints:2*num_keypoints+3]
         label_trans = tcoord[2*num_keypoints:2*num_keypoints+3]
-        device_id = trans_pred.get_device()
-        loss_trans = huber_loss(trans_pred, label_trans, device_id)/nB
+        #loss_trans = nn.MSELoss(reduction='sum')(trans_pred, label_trans)/nB
+        loss_trans = huber_loss(trans_pred, label_trans, self.device)/nB
 
         rot_pred = coord[2*num_keypoints+3:2*num_keypoints+7]
-        rot_pred = F.normalize(rot_pred, p=2, dim=1)
+        label_rot = tcoord[2*num_keypoints+3:2*num_keypoints+7]
+        rot_pred = F.normalize(rot_pred, p=2, dim=0)
+        #loss_rot = nn.MSELoss(reduction='sum')(rot_pred, label_rot)/nB
         loss_rot = torch.abs(rot_pred - tcoord[2*num_keypoints+3:2*num_keypoints+7])
         loss_rot = loss_rot.view(-1).sum(0) / nB
 
@@ -205,8 +207,8 @@ class YoloLayer(nn.Module):
             print('       create loss : %f' % (t4 - t3))
             print('             total : %f' % (t4 - t0))
             
-        if (self.seen-self.seen//100*100) < nB:
-            print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: coord %6.3f, trans %6.3f, rot %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
+        #if (self.seen-self.seen//100*100) < nB:
+        print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: coord %6.3f, trans %6.3f, rot %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
                 % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_coord, loss_trans, loss_rot, loss_conf, loss_cls, loss))
         if math.isnan(loss.item()):
             print(coord, conf, tconf)
@@ -214,7 +216,7 @@ class YoloLayer(nn.Module):
         return loss
 
 
-def huber_loss(bbox_pred, bbox_targets, device_id, beta=2.8):
+def huber_loss(bbox_pred, bbox_targets, device, beta=2.8/100.0):
     """
     SmoothL1(x) = 0.5 * x^2 / beta      if |x| < beta
                   |x| - 0.5 * beta      otherwise.
@@ -224,11 +226,11 @@ def huber_loss(bbox_pred, bbox_targets, device_id, beta=2.8):
 
     dis_trans = np.linalg.norm(box_diff.data.cpu().numpy(), axis=1)
     # we also add a metric for dist<2.8 metres.
-    inbox_idx = dis_trans <= 2.8
-    outbox_idx = dis_trans > 2.8
+    inbox_idx = dis_trans <= 2.8/100.0
+    outbox_idx = dis_trans > 2.8/100.0
 
-    bbox_inside_weights = Variable(torch.from_numpy(inbox_idx.astype('float32'))).cuda(device_id)
-    bbox_outside_weights = Variable(torch.from_numpy(outbox_idx.astype('float32'))).cuda(device_id)
+    bbox_inside_weights = torch.autograd.Variable(torch.from_numpy(inbox_idx.astype('float32'))).to(device)
+    bbox_outside_weights = torch.autograd.Variable(torch.from_numpy(outbox_idx.astype('float32'))).to(device)
 
     in_box_pow_diff = 0.5 * torch.pow(box_diff, 2) / beta
     in_box_loss = in_box_pow_diff.sum(dim=1) * bbox_inside_weights

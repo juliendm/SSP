@@ -84,8 +84,8 @@ def detect(cfgfile, weightfile, imgfile):
             pass
             # img.save(imgpath_preprocessed)
 
-        with open(segm_path,'rb') as pkl_file:
-            segms = pickle.load(pkl_file)
+        # with open(segm_path,'rb') as pkl_file:
+        #     segms = pickle.load(pkl_file)
 
         # with open(yolov3_path,'rb') as pkl_file:
         #     boxes_yolov3 = pickle.load(pkl_file)

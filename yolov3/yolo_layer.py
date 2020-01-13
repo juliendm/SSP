@@ -191,7 +191,7 @@ class YoloLayer(nn.Module):
             print('       create loss : %f' % (t4 - t3))
             print('             total : %f' % (t4 - t0))
             
-        if (self.seen-self.seen//100*100) < nB:
+        if (self.seen-self.seen//500*500) < nB:
             print('%d: Layer(%03d) nGT %3d, nRC %3d, nRC75 %3d, nPP %3d, loss: box %6.3f, conf %6.3f, class %6.3f, total %7.3f' 
                 % (self.seen, self.nth_layer, nGT, nRecall, nRecall75, nProposals, loss_box, loss_conf, loss_cls, loss))
         if math.isnan(loss.item()):

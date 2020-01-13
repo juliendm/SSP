@@ -366,14 +366,22 @@ def compute_projection(points_3D, transformation, internal_calibration):
     projections_2d[1, :] = camera_projection[1, :]/camera_projection[2, :]
     return projections_2d
 
-def get_3D_corners(vertices):
+def get_3D_corners(vertices, mean=False):
     
-    min_x = np.min(vertices[0,:])
-    max_x = np.max(vertices[0,:])
-    min_y = np.min(vertices[1,:])
-    max_y = np.max(vertices[1,:])
-    min_z = np.min(vertices[2,:])
-    max_z = np.max(vertices[2,:])
+    if not mean:
+        min_x = np.min(vertices[0,:])
+        max_x = np.max(vertices[0,:])
+        min_y = np.min(vertices[1,:])
+        max_y = np.max(vertices[1,:])
+        min_z = np.min(vertices[2,:])
+        max_z = np.max(vertices[2,:])
+    else:
+        w = 2.13 # 2.1262749720588237
+        l = 4.80 # 4.800481095294118
+        h = 1.62 # 1.6173697967647058
+        min_x,max_x = -0.5*w,0.5*w
+        min_z,max_z = -0.5*l,0.5*l
+        min_y,max_y = -0.5*h,0.5*h
 
     corners = np.array([[min_x, min_y, min_z],
                         [min_x, min_y, max_z],

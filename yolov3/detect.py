@@ -179,7 +179,7 @@ def detect(cfgfile, weightfile, imgfile):
 
             vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
             triangles = np.array(data['faces'])-1
-            corners3D     = get_3D_corners(vertices)   
+            corners3D     = get_3D_corners(vertices,mean=True)   
             objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
 
             K = np.array([[2304.5479, 0,  1686.2379],
@@ -223,9 +223,10 @@ def detect(cfgfile, weightfile, imgfile):
             proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
             proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
             proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
-            # for j in range(num_keypoints-2):
-            #     boxes[i][9+2*j]   = proj_corners2D[j, 0]
-            #     boxes[i][9+2*j+1] = proj_corners2D[j, 1]
+            
+            for j in range(num_keypoints-2):
+                filtered_boxes[i][9+2*j]   = proj_corners2D[j, 0]
+                filtered_boxes[i][9+2*j+1] = proj_corners2D[j, 1]
 
             vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
             vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0

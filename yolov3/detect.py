@@ -28,13 +28,6 @@ def detect(cfgfile, weightfile, imgfile):
     with open('cfg/flips.json') as json_file:
         flipped = json.load(json_file)
     print('Loading Flipped... Done')
-
-    # if m.num_classes == 20:
-    #     namesfile = 'data/voc.names'
-    # elif m.num_classes == 80:
-    #     namesfile = 'data/coco.names'
-    # else:
-    #     namesfile = 'data/names'
     
     use_cuda = torch.cuda.is_available()
     if use_cuda:
@@ -43,23 +36,18 @@ def detect(cfgfile, weightfile, imgfile):
     class_names = load_class_names(namesfile)
 
     if imgfile == 'None':
-        # baidu_data_submission = pd.read_csv('../../baidu_data/sample_submission.csv')
-        # imgfiles = []
-        # for img_id in baidu_data_submission['ImageId']:
-        #     imgfiles.append('../../baidu_data/testing/images/%s.jpg' % img_id)
 
         with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
            imgfiles = subm_file.readlines()
         imgfiles = imgfiles
-
-        # with open('cfg/subm_pku_baidu.txt', 'r') as subm_file:
-        #    imgfiles = subm_file.readlines()
 
     else:
         imgfiles = [imgfile]
     print('Loading Image Files... Done')
 
     submission = {}
+    
+    visualize = True
 
     for index,imgfile in enumerate(imgfiles):
         if index%50==0: print(index)
@@ -98,7 +86,7 @@ def detect(cfgfile, weightfile, imgfile):
         # NN Predictions
 
         start = time.time()
-        boxes = do_detect(m, sized, 0.5, 0.4, use_cuda)
+        boxes = do_detect(m, sized, 0.5, 0.3, use_cuda)
         correct_yolo_boxes(boxes, img.width, img.height, m.width, m.height)
         finish = time.time()
         print('%s: Predicted in %f seconds.' % (imgfile, (finish-start)))
@@ -179,7 +167,7 @@ def detect(cfgfile, weightfile, imgfile):
 
             vertices  = np.c_[np.array(data['vertices']), np.ones((len(data['vertices']), 1))].transpose()
             triangles = np.array(data['faces'])-1
-            corners3D     = get_3D_corners(vertices,mean=True)   
+            corners3D     = get_3D_corners(vertices, mean=True)   
             objpoints3D = np.array(np.transpose(np.concatenate((np.zeros((3, 1)), corners3D[:3, :]), axis=1)), dtype='float32')
 
             K = np.array([[2304.5479, 0,  1686.2379],
@@ -194,60 +182,71 @@ def detect(cfgfile, weightfile, imgfile):
             R_pr, t_pr = pnp(objpoints3D,  corners2D, K)
             Rt_pr      = np.concatenate((R_pr, t_pr), axis=1)
 
-            angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
 
+            # # Make Prediction Candidates
+            # angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
+            # pred_candidate = [angles[0],angles[1],-angles[2]+np.pi,t_pr[0,0],t_pr[1,0],t_pr[2,0],box[5],model_id]
+            
             # Make Prediction Candidates
-            pred_candidate = [angles[0],angles[1],angles[2],t_pr[0,0],t_pr[1,0],t_pr[2,0],box[5],model_id]
+            angles = Rotation.from_dcm(R_pr.T).as_euler('yxz')
+            angle_y = angles[0]
+            angle_z = angles[2]+np.pi
+            angle_x = angles[1]*np.sign(rotate(angle_y,np.pi/2.0))
+            if angle_z > np.pi: angle_z -= 2.0*np.pi
+            pred_candidate = [angle_x,angle_y,angle_z,t_pr[0,0],t_pr[1,0],t_pr[2,0],box[5],model_id]
+
             pred_candidates.append(pred_candidate)
             
+            x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angle_x,angle_y,angle_z]
 
-        #     # if i == 0:
-        #     #     angles = Rotation.from_dcm(R_pr.T).as_euler('xyz')
-        #     #     # 
-                
-        #     #     with open('mask.pkl','rb') as pkl_file:
-        #     #         mask = pickle.load(pkl_file)
+            # # Optim:
+            # res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
+            # #x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
 
-        #     #     x0 = [t_pr[0,0],t_pr[1,0],t_pr[2,0],angles[0],angles[1],angles[2]]
+            # iou = -neg_iou_mask(x0,coords,mask,save=True)
+            # print(iou)
 
-        #     #     # Optim:
-        #     #     #res = fmin_bfgs(neg_iou_mask, x0, args=(coords,mask),epsilon=1e-03,disp=1)
-        #     #     x_sol = [-5.00803688 ,2.9252357 ,12.67238289 ,0.15001176 ,-0.0128817 , -0.04438048]
+            # R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
 
-        #     #     iou = -neg_iou_mask(x0,coords,mask,save=True)
-        #     #     print(iou)
+            x_sol = x0
 
-        #     #     R_pr = Rotation.from_euler('xyz', x_sol[3:]).as_dcm().T
-        #     #     Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
+            R_pr = Rotation.from_euler('xyz', [x_sol[3], x_sol[4], -x_sol[5]+np.pi]).as_dcm().T
+            Rt_pr = np.concatenate((R_pr, np.array(x_sol[:3]).reshape(-1,1)), axis=1)
 
-            proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
-            proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
-            proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
+        
             
-            for j in range(num_keypoints-2):
-                filtered_boxes[i][9+2*j]   = proj_corners2D[j, 0]
-                filtered_boxes[i][9+2*j+1] = proj_corners2D[j, 1]
+            if visualize:
 
-            vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
-            vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
-            vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
-            vertices_2D.append(vertices_proj_2d)
+                proj_corners2D  = np.transpose(compute_projection(corners3D, Rt_pr, K))
+                proj_corners2D[:, 0] = proj_corners2D[:, 0] / 3384.0
+                proj_corners2D[:, 1] = (proj_corners2D[:, 1] - 1497.0) / (2710.0-1497.0) 
 
-            # vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
-            # vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
-            # vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
-            # vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
-            # vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
-            # vertices_2D_colored.append(vertices_proj_2d_colored)
+                for j in range(num_keypoints-2):
+                    filtered_boxes[i][9+2*j]   = proj_corners2D[j, 0]
+                    filtered_boxes[i][9+2*j+1] = proj_corners2D[j, 1]
 
-            triangles_2D.append(triangles)
+                vertices_proj_2d = np.transpose(compute_projection(vertices, Rt_pr, K))
+                vertices_proj_2d[:, 0] = vertices_proj_2d[:, 0] / 3384.0
+                vertices_proj_2d[:, 1] = (vertices_proj_2d[:, 1] - 1497.0) / (2710.0-1497.0) 
+                vertices_2D.append(vertices_proj_2d)
 
+                # vertices_colored =  np.c_[coords[:,:3], np.ones((len(data['vertices']), 1))].transpose()
+                # vertices_proj_2d_colored = np.transpose(compute_projection(vertices_colored, Rt_pr, K))
+                # vertices_proj_2d_colored = np.c_[vertices_proj_2d_colored, coords[:,3]]
+                # vertices_proj_2d_colored[:, 0] = vertices_proj_2d_colored[:, 0] / 3384.0
+                # vertices_proj_2d_colored[:, 1] = (vertices_proj_2d_colored[:, 1] - 1497.0) / (2710.0-1497.0) 
+                # vertices_2D_colored.append(vertices_proj_2d_colored)
 
-        if (img_id in flipped) and flipped[img_id]:
-            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                triangles_2D.append(triangles)
 
-        plot_boxes(img, filtered_boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
-        #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
+                
+        if visualize:
+
+            if (img_id in flipped) and flipped[img_id]:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+            plot_boxes(img, filtered_boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D, triangles_2D)
+            #plot_boxes(img, boxes, '../../baidu_data/predictions/%s.jpg' % img_id, class_names, vertices_2D_colored)
 
         pred_str = ''
 
@@ -281,7 +280,7 @@ def detect(cfgfile, weightfile, imgfile):
         pred_candidates = np.array(pred_candidates)
         for pred_idx in range(len(pred_candidates)):
             pred = pred_candidates[pred_idx]
-            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],-pred[2]+np.pi,pred[3],pred[4],pred[5],pred[6])
+            pred_str += '%f %f %f %f %f %f %f ' % (pred[0],pred[1],pred[2],pred[3],pred[4],pred[5],pred[6])
 
         # Save
         submission[img_id] = pred_str.rstrip()

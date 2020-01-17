@@ -319,7 +319,9 @@ def neg_iou_mask(x,coords,mask,save=False):
                   [0, 2305.8757, 1354.9849],
                   [0, 0, 1]], dtype=np.float32)
 
-    R_pr = Rotation.from_euler('xyz', x[3:]).as_dcm().T
+    #R_pr = Rotation.from_euler('xyz', x[3:]).as_dcm().T
+    R_pr = Rotation.from_euler('xyz', [x[3], x[4], -x[5]+np.pi]).as_dcm().T
+
     Rt_pr = np.concatenate((R_pr, np.array(x[:3]).reshape(-1,1)), axis=1)
 
     vertices_colored =  np.c_[coords[:,:3], np.ones((len(coords), 1))].transpose()

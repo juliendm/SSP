@@ -545,8 +545,8 @@ def read_truths_args(lab_path, min_box_scale):
     new_truths = []
     for i in range(truths.shape[0]):
 
-        #new_truths.append(car_id2class[truths[i][0]])
-        new_truths.append(truths[i][0])
+        new_truths.append(car_id2class[truths[i][0]])
+        #new_truths.append(truths[i][0])
         for j in range(num_keypoints):
             new_truths.append(truths[i][2*j+1])
             new_truths.append((truths[i][2*j+2]*2710.0-1497.0)/(2710.0-1497.0))

@@ -285,8 +285,8 @@ def fill_truth_detection(labpath, crop, flip, dx, dy, sx, sy):
             #     continue
 
 
-            # bs[i][0] = car_id2class[bs[i][0]]
-            bs[i][0] = bs[i][0]
+            bs[i][0] = car_id2class[bs[i][0]]
+            # bs[i][0] = bs[i][0]
 
             label[cc] = bs[i]
             # label[cc] = np.array([bs[i][0],bs[i][1],bs[i][2],bs[i][19],bs[i][20]])
